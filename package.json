@@ -1,0 +1,20 @@
+{
+  "name": "camera-embed",
+  "version": "1.0.2",
+  "description": "Obsidian plugin to capture a photo and embed it into the note.",
+  "main": "main.js",
+  "scripts": {
+    "dev": "node esbuild.config.mjs",
+    "build": "node esbuild.config.mjs production",
+    "dist": "npm run build && bash scripts/make-dist.sh",
+    "build:plugin": "npm run build"
+  },
+  "devDependencies": {
+    "esbuild": "^0.20.2",
+    "obsidian": "^1.5.8",
+    "typescript": "^5.4.2"
+  },
+  "dependencies": {
+    "compressorjs": "^1.2.1"
+  }
+}
