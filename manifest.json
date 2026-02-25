@@ -3,7 +3,7 @@
   "name": "Camera Embed",
   "version": "1.0.2",
   "minAppVersion": "1.0.0",
-  "description": "Capture and compress a photo on Android, then embed it into your Obsidian note.",
+  "description": "Capture and compress a photo on Android, then embed it into your note.",
   "author": "Slavko Melnyk",
   "authorUrl": "",
   "isDesktopOnly": false
