@@ -2,6 +2,11 @@
 
 All notable changes to **this project** will be documented in this file.
 
+## 1.0.3
+- Updated project dependencies.
+- Refined project structure.
+- Updated code.
+
 ## 1.0.2
 - Add Image Compression
 - Add setting to enable/disable photo compression.
