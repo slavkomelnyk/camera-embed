@@ -3,7 +3,7 @@ node_modules/
 
 # Build output
 dist/
-Main.
+/main.js
 
 # Editor
 .vscode/

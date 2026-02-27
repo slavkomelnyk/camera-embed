@@ -2,37 +2,22 @@ import Compressor from "compressorjs";
 import {
   MarkdownView,
   Notice,
-  App,
   Plugin,
-  PluginSettingTab,
-  Setting,
   TFolder,
   normalizePath,
   addIcon,
 } from "obsidian";
 
-interface AndroidCameraEmbedSettings {
-  photosFolder: string;
-  createFolderIfMissing: boolean;
-  compressImages: boolean;
-  compressQuality: number;
-}
-
-const DEFAULT_SETTINGS: AndroidCameraEmbedSettings = {
-  photosFolder: "",
-  createFolderIfMissing: true,
-  compressImages: false,
-  compressQuality: 0.8,
-};
+import {DEFAULT_SETTINGS, CameraEmbedSettings, CameraEmbedSettingTab} from "./settings";
 
 export default class AndroidCameraEmbedPlugin extends Plugin {
-  settings: AndroidCameraEmbedSettings = DEFAULT_SETTINGS;
+  settings: CameraEmbedSettings;
 
   async onload() {
     // Load persisted settings before wiring UI.
     await this.loadSettings();
 
-    this.addSettingTab(new AndroidCameraEmbedSettingTab(this.app, this));
+    this.addSettingTab(new CameraEmbedSettingTab(this.app, this));
 
     // Register custom camera icon with viewBox 0 0 100 100 (required by Obsidian)
     addIcon(
@@ -58,7 +43,7 @@ export default class AndroidCameraEmbedPlugin extends Plugin {
     // Ensure there's an active markdown editor to insert the image.
     const view = this.app.workspace.getActiveViewOfType(MarkdownView);
     if (!view) {
-      new Notice("Please open a markdown note to insert the photo.");
+      new Notice("Please open a Markdown note to insert the photo.");
       return;
     }
 
@@ -134,7 +119,7 @@ export default class AndroidCameraEmbedPlugin extends Plugin {
 
       input.addEventListener("change", () => {
         const file = input.files && input.files.length > 0 ? input.files[0] : null;
-        cleanup(file);
+        cleanup(file as File | null);
       });
 
       document.body.appendChild(input);
@@ -152,7 +137,7 @@ export default class AndroidCameraEmbedPlugin extends Plugin {
 
   private extensionFromName(name: string): string | null {
     const match = name.match(/\.([a-zA-Z0-9]+)$/);
-    return match ? match[1] : null;
+    return match?.[1] ?? null;
   }
 
   private extensionFromType(mimeType: string): string | null {
@@ -219,89 +204,21 @@ export default class AndroidCameraEmbedPlugin extends Plugin {
       await this.app.vault.createFolder(normalized);
       return normalized;
     } catch (error) {
-      new Notice(`Failed to create folder: ${normalized}`);
-      console.error(`${error}`)
+      if (error instanceof Error) {
+        new Notice(`Failed to create folder: ${normalized}`);
+        console.error(`${error.message}`);
+      } else {
+        console.error(error);
+      }
       return null;
     }
   }
 
-  private async loadSettings() {
-    this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
-  }
+  async loadSettings() {
+    this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData() as Partial<CameraEmbedSettings>);
+	}
 
   async saveSettings() {
     await this.saveData(this.settings);
-  }
-}
-
-class AndroidCameraEmbedSettingTab extends PluginSettingTab {
-  plugin: AndroidCameraEmbedPlugin;
-
-  constructor(app: App, plugin: AndroidCameraEmbedPlugin) {
-    super(app, plugin);
-    this.plugin = plugin;
-  }
-
-  display(): void {
-    const { containerEl } = this;
-    containerEl.empty();
-    new Setting(containerEl).setName("Obsidian Camera Embed").setHeading();
-    new Setting(containerEl)
-      .setName("Android only")
-      .setDesc("This plugin is intended for Android and is not supported on iOS or desktop.");
-
-    new Setting(containerEl)
-      .setName("Photos folder")
-      .setDesc(
-        "Optional, use a vault-relative path like attachments/camera, leave blank to store next to the note."
-      )
-      .addText((text) =>
-        text
-          .setValue(this.plugin.settings.photosFolder)
-          .onChange(async (value) => {
-            this.plugin.settings.photosFolder = value;
-            await this.plugin.saveSettings();
-          })
-      );
-
-    new Setting(containerEl)
-      .setName("Create folder if missing")
-      .setDesc("Automatically create the photos folder if it does not exist.")
-      .addToggle((toggle) =>
-        toggle
-          .setValue(this.plugin.settings.createFolderIfMissing)
-          .onChange(async (value) => {
-            this.plugin.settings.createFolderIfMissing = value;
-            await this.plugin.saveSettings();
-          })
-      );
-
-    new Setting(containerEl).setName("Compress images").setHeading();
-
-    new Setting(containerEl)
-      .setName("Compress images")
-      .setDesc("Reduce photo file sizes by compressing them before saving.")
-      .addToggle((toggle) =>
-        toggle
-          .setValue(this.plugin.settings.compressImages)
-          .onChange(async (value) => {
-            this.plugin.settings.compressImages = value;
-            await this.plugin.saveSettings();
-          })
-      );
-
-    new Setting(containerEl)
-      .setName("Compress Quality")
-      .setDesc("Adjust the quality of compressed images. Lower values result in smaller files but worse quality.")
-      .addSlider(slider =>
-        slider
-          .setLimits(0, 0.9, 0.05) // min 0.1, max 1, step 0.05
-          .setValue(this.plugin.settings.compressQuality)
-          .onChange(async (value) => {
-            this.plugin.settings.compressQuality = value;
-            await this.plugin.saveSettings();
-          })
-      )
-
   }
 }
