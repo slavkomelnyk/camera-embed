@@ -4,6 +4,7 @@ import CameraEmbedPlugin from "./main";
 export interface CameraEmbedSettings {
   photosFolder: string;
   createFolderIfMissing: boolean;
+  saveNearTheNote: boolean;
   compressImages: boolean;
   compressQuality: number;
 }
@@ -11,6 +12,7 @@ export interface CameraEmbedSettings {
 export const DEFAULT_SETTINGS: CameraEmbedSettings = {
   photosFolder: "",
   createFolderIfMissing: true,
+  saveNearTheNote: false,
   compressImages: false,
   compressQuality: 0.8,
 };
@@ -31,7 +33,7 @@ export class CameraEmbedSettingTab extends PluginSettingTab {
       .setName("Android only")
       .setDesc("This plugin is intended for Android and is not supported on iOS or desktop.");
 
-    new Setting(containerEl).setName("Paths").setHeading();
+    new Setting(containerEl).setName("Save images").setHeading();
     new Setting(containerEl)
       .setName("Photos folder")
       .setDesc(
@@ -54,6 +56,20 @@ export class CameraEmbedSettingTab extends PluginSettingTab {
           .setValue(this.plugin.settings.createFolderIfMissing)
           .onChange(async (value) => {
             this.plugin.settings.createFolderIfMissing = value;
+            await this.plugin.saveSettings();
+          })
+      );
+
+    new Setting(containerEl)
+      .setName("Save near the note")
+      .setDesc(
+        "When enabled, photos will be saved in the same folder as the note, or inside a photos folder within that same directory."
+      )
+      .addToggle((toggle) =>
+        toggle
+          .setValue(this.plugin.settings.saveNearTheNote)
+          .onChange(async (value) => {
+            this.plugin.settings.saveNearTheNote = value;
             await this.plugin.saveSettings();
           })
       );

@@ -68,9 +68,13 @@ export default class AndroidCameraEmbedPlugin extends Plugin {
     // Save the photo into the vault.
     const arrayBuffer = await finalFile.arrayBuffer();
     const parent = this.app.fileManager.getNewFileParent(activeFile.path);
-    const targetFolderPath = await this.ensureTargetFolder(parent);
-    if (!targetFolderPath) {
-      return;
+    const filePath = activeFile?.parent?.path
+    let targetFolderPath: string | null | undefined;
+    if (this.settings.saveNearTheNote) {
+      // Save in the same folder as the active note.
+      targetFolderPath = `${filePath}/${await this.ensureTargetFolder(parent, filePath)}`
+    } else {
+      targetFolderPath = await this.ensureTargetFolder(parent, filePath);
     }
 
     const fileName = this.buildFileName(file);
@@ -151,7 +155,7 @@ export default class AndroidCameraEmbedPlugin extends Plugin {
     return subtype.replace("jpeg", "jpg");
   }
 
-  private joinPath(parentPath: string, fileName: string): string {
+  private joinPath(parentPath: string | null, fileName: string): string {
     if (!parentPath) {
       return fileName;
     }
@@ -181,7 +185,7 @@ export default class AndroidCameraEmbedPlugin extends Plugin {
     return `${dir}${base}-${Date.now()}${ext}`;
   }
 
-  private async ensureTargetFolder(parent: TFolder): Promise<string | null> {
+  private async ensureTargetFolder(parent: TFolder, filePath: string | undefined): Promise<string | null> {
     // Resolve the destination folder based on settings.
     const rawPath = this.settings.photosFolder.trim();
     if (!rawPath) {
@@ -190,6 +194,7 @@ export default class AndroidCameraEmbedPlugin extends Plugin {
 
     const normalized = normalizePath(rawPath);
     const existing = this.app.vault.getAbstractFileByPath(normalized);
+
     if (existing instanceof TFolder) {
       return existing.path;
     }
@@ -201,7 +206,7 @@ export default class AndroidCameraEmbedPlugin extends Plugin {
 
     try {
       // Create the folder tree if desired.
-      await this.app.vault.createFolder(normalized);
+      await this.app.vault.createFolder(this.settings.saveNearTheNote ? `${filePath}/${normalizePath(rawPath)}` : normalizePath(rawPath));
       return normalized;
     } catch (error) {
       if (error instanceof Error) {
