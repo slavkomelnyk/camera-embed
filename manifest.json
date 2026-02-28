@@ -1,7 +1,7 @@
 {
 	"id": "camera-embed",
 	"name": "Camera Embed",
-	"version": "1.0.4",
+	"version": "1.0.3",
 	"minAppVersion": "1.0.0",
 	"description": "Capture and compress a photo on Android, then embed it into your note.",
 	"author": "Sviatoslav Melnyk",
