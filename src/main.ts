@@ -7,10 +7,9 @@ import {
   normalizePath,
   addIcon,
 } from "obsidian";
+import { DEFAULT_SETTINGS, CameraEmbedSettings, CameraEmbedSettingTab } from "./settings";
 
-import {DEFAULT_SETTINGS, CameraEmbedSettings, CameraEmbedSettingTab} from "./settings";
-
-export default class AndroidCameraEmbedPlugin extends Plugin {
+export default class CameraEmbedPlugin extends Plugin {
   settings: CameraEmbedSettings;
 
   async onload() {
@@ -21,18 +20,18 @@ export default class AndroidCameraEmbedPlugin extends Plugin {
 
     // Register custom camera icon with viewBox 0 0 100 100 (required by Obsidian)
     addIcon(
-      "android-camera",
-      '<svg viewBox="0 0 100 100"><path fill="none" stroke="currentColor" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" d="M81 79H19c-4 0-8-4-8-8V33c0-4 4-8 8-8h13l6-10h24l6 10h13c4 0 8 4 8 8v38c0 4-4 8-8 8Z"/><circle fill="none" stroke="currentColor" stroke-width="6" cx="50" cy="52" r="17"/></svg>'
+      "camera-icon",
+      '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-camera-icon lucide-camera"><path d="M13.997 4a2 2 0 0 1 1.76 1.05l.486.9A2 2 0 0 0 18.003 7H20a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2h1.997a2 2 0 0 0 1.759-1.048l.489-.904A2 2 0 0 1 10.004 4z"/><circle cx="12" cy="13" r="3"/></svg>'
     );
 
-    this.addRibbonIcon("android-camera", "Capture photo", () => {
+    this.addRibbonIcon("camera-icon", "Capture photo", () => {
       void this.captureAndEmbed();
     });
 
     this.addCommand({
       id: "capture-photo-embed",
       name: "Capture photo and embed",
-      icon: "android-camera",
+      icon: "camera-icon",
       callback: () => {
         void this.captureAndEmbed();
       },
@@ -55,32 +54,23 @@ export default class AndroidCameraEmbedPlugin extends Plugin {
 
     // Open the device camera and let the user capture a photo.
     const file = await this.pickImageFromCamera();
-    if (!file) {
-      return;
-    }
+    if (!file) return;
 
     let finalFile: Blob | File = file;
-
     if (this.settings.compressImages) {
       finalFile = await this.compressImage(file);
     }
 
     // Save the photo into the vault.
     const arrayBuffer = await finalFile.arrayBuffer();
-    const parent = this.app.fileManager.getNewFileParent(activeFile.path);
-    const filePath = activeFile?.parent?.path
-    let targetFolderPath: string | null | undefined;
-    if (this.settings.saveNearTheNote) {
-      // Save in the same folder as the active note.
-      targetFolderPath = `${filePath}/${await this.ensureTargetFolder(parent, filePath)}`
-    } else {
-      targetFolderPath = await this.ensureTargetFolder(parent, filePath);
-    }
+    const filePath = activeFile.parent?.path; // e.g. "news" or "" (if note in root)
+
+    // Determine the target folder based on settings
+    const targetFolderPath = await this.ensureTargetFolder(filePath);
+    if (targetFolderPath === null) return; // error already shown
 
     const fileName = this.buildFileName(file);
-    const targetPath = this.getAvailablePath(
-      this.joinPath(targetFolderPath, fileName)
-    );
+    const targetPath = this.getAvailablePath(this.joinPath(targetFolderPath, fileName));
     const created = await this.app.vault.createBinary(targetPath, arrayBuffer);
 
     // Insert a markdown embed for the saved image.
@@ -108,7 +98,7 @@ export default class AndroidCameraEmbedPlugin extends Plugin {
       input.type = "file";
       input.accept = "image/*";
       input.capture = "environment";
-      input.addClass("android-camera-hidden");
+      input.addClass("camera-hidden");
 
       const timeoutId = setTimeout(() => {
         input.remove();
@@ -145,28 +135,20 @@ export default class AndroidCameraEmbedPlugin extends Plugin {
   }
 
   private extensionFromType(mimeType: string): string | null {
-    if (!mimeType.startsWith("image/")) {
-      return null;
-    }
+    if (!mimeType.startsWith("image/")) return null;
     const subtype = mimeType.split("/")[1];
-    if (!subtype) {
-      return null;
-    }
+    if (!subtype) return null;
     return subtype.replace("jpeg", "jpg");
   }
 
   private joinPath(parentPath: string | null, fileName: string): string {
-    if (!parentPath) {
-      return fileName;
-    }
+    if (!parentPath) return fileName; // parentPath is empty string → vault root
     return `${parentPath}/${fileName}`;
   }
 
   private getAvailablePath(path: string): string {
     // Avoid overwriting existing files by adding a suffix.
-    if (!this.app.vault.getAbstractFileByPath(path)) {
-      return path;
-    }
+    if (!this.app.vault.getAbstractFileByPath(path)) return path;
 
     const parts = path.split("/");
     const name = parts.pop() ?? path;
@@ -175,29 +157,67 @@ export default class AndroidCameraEmbedPlugin extends Plugin {
     const base = extIndex === -1 ? name : name.slice(0, extIndex);
     const ext = extIndex === -1 ? "" : name.slice(extIndex);
 
-    for (let i = 1; i < 1000; i += 1) {
+    for (let i = 1; i < 1000; i++) {
       const candidate = `${dir}${base}-${i}${ext}`;
-      if (!this.app.vault.getAbstractFileByPath(candidate)) {
-        return candidate;
-      }
+      if (!this.app.vault.getAbstractFileByPath(candidate)) return candidate;
     }
-
     return `${dir}${base}-${Date.now()}${ext}`;
   }
 
-  private async ensureTargetFolder(parent: TFolder, filePath: string | undefined): Promise<string | null> {
-    // Resolve the destination folder based on settings.
-    const rawPath = this.settings.photosFolder.trim();
-    if (!rawPath) {
-      return parent.path;
+  /**
+   * Determines the folder path where the photo should be saved,
+   * and creates it if missing (when `createFolderIfMissing` is true).
+   *
+   * @param noteFolderPath – the path of the folder containing the active note
+   *                        (may be empty string if note is in vault root)
+   * @returns The normalized target folder path (empty string for vault root),
+   *          or `null` if the folder cannot be used/created.
+   */
+  private async ensureTargetFolder(noteFolderPath: string | undefined): Promise<string | null> {
+    const rawPhotosFolder = this.settings.photosFolder.trim();
+    const saveNear = this.settings.saveNearTheNote;
+
+    // --- Case A: Save near the note ---
+    if (saveNear) {
+      // noteFolderPath is guaranteed to exist because the note exists
+      const baseFolder = noteFolderPath ?? "";
+
+      if (rawPhotosFolder === "") {
+        // Save directly in the note's folder
+        return baseFolder; // may be "" (vault root)
+      } else {
+        // Save in note's folder + photosFolder
+        const target = baseFolder ? `${baseFolder}/${rawPhotosFolder}` : rawPhotosFolder;
+        const normalized = normalizePath(target);
+
+        // If the folder already exists, return it
+        if (await this.folderExists(normalized)) return normalized;
+
+        // Otherwise, create it if allowed
+        if (!this.settings.createFolderIfMissing) {
+          new Notice(`Folder not found: ${normalized}`);
+          return null;
+        }
+
+        try {
+          await this.app.vault.createFolder(normalized);
+          return normalized;
+        } catch (error) {
+          new Notice(`Failed to create folder: ${normalized}`);
+          console.error(error);
+          return null;
+        }
+      }
     }
 
-    const normalized = normalizePath(rawPath);
-    const existing = this.app.vault.getAbstractFileByPath(normalized);
-
-    if (existing instanceof TFolder) {
-      return existing.path;
+    // --- Case B: Global photos folder (not near the note) ---
+    if (rawPhotosFolder === "") {
+      // Save in vault root
+      return "";
     }
+
+    const normalized = normalizePath(rawPhotosFolder);
+    if (await this.folderExists(normalized)) return normalized;
 
     if (!this.settings.createFolderIfMissing) {
       new Notice(`Folder not found: ${normalized}`);
@@ -205,23 +225,24 @@ export default class AndroidCameraEmbedPlugin extends Plugin {
     }
 
     try {
-      // Create the folder tree if desired.
-      await this.app.vault.createFolder(this.settings.saveNearTheNote ? `${filePath}/${normalizePath(rawPath)}` : normalizePath(rawPath));
+      await this.app.vault.createFolder(normalized);
       return normalized;
     } catch (error) {
-      if (error instanceof Error) {
-        new Notice(`Failed to create folder: ${normalized}`);
-        console.error(`${error.message}`);
-      } else {
-        console.error(error);
-      }
+      new Notice(`Failed to create folder: ${normalized}`);
+      console.error(error);
       return null;
     }
   }
 
+  /** Helper to check if a folder exists at the given path. */
+  private async folderExists(path: string): Promise<boolean> {
+    const file = this.app.vault.getAbstractFileByPath(path);
+    return file instanceof TFolder;
+  }
+
   async loadSettings() {
     this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData() as Partial<CameraEmbedSettings>);
-	}
+  }
 
   async saveSettings() {
     await this.saveData(this.settings);
