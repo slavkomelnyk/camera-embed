@@ -1,6 +1,11 @@
 # Changelog
 
 All notable changes to **this project** will be documented in this file.
+## 1.0.5
+- Fix errors
+
+## 1.0.4
+- Added option to save photos near note.
 
 ## 1.0.3
 - Updated project dependencies.
