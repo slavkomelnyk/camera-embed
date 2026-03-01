@@ -191,7 +191,7 @@ export default class CameraEmbedPlugin extends Plugin {
         const normalized = normalizePath(target);
 
         // If the folder already exists, return it
-        if (await this.folderExists(normalized)) return normalized;
+        if (this.folderExists(normalized)) return normalized;
 
         // Otherwise, create it if allowed
         if (!this.settings.createFolderIfMissing) {
@@ -217,7 +217,7 @@ export default class CameraEmbedPlugin extends Plugin {
     }
 
     const normalized = normalizePath(rawPhotosFolder);
-    if (await this.folderExists(normalized)) return normalized;
+    if (this.folderExists(normalized)) return normalized;
 
     if (!this.settings.createFolderIfMissing) {
       new Notice(`Folder not found: ${normalized}`);
@@ -235,7 +235,7 @@ export default class CameraEmbedPlugin extends Plugin {
   }
 
   /** Helper to check if a folder exists at the given path. */
-  private async folderExists(path: string): Promise<boolean> {
+    private folderExists(path: string): boolean {
     const file = this.app.vault.getAbstractFileByPath(path);
     return file instanceof TFolder;
   }
