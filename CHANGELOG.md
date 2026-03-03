@@ -1,6 +1,12 @@
 # Changelog
 
 All notable changes to **this project** will be documented in this file.
+## 1.0.7
+- change tag from v1.0.6 to 1.0.7
+
+## 1.0.6
+- Fix errors
+
 ## 1.0.5
 - Fix errors
 
