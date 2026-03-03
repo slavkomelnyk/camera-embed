@@ -1,13 +1,16 @@
-import Compressor from "compressorjs";
 import {
   MarkdownView,
   Notice,
   Plugin,
-  TFolder,
   normalizePath,
   addIcon,
 } from "obsidian";
+
 import { DEFAULT_SETTINGS, CameraEmbedSettings, CameraEmbedSettingTab } from "./settings";
+import { compressImage } from "compressor";
+import { buildFileName, folderExists, getAvailablePath, joinPath } from "./file-utils";
+import { pickImageFromCamera } from "./input-utils";
+import {PickerModal} from "./picker-modal";
 
 export default class CameraEmbedPlugin extends Plugin {
   settings: CameraEmbedSettings;
@@ -17,7 +20,6 @@ export default class CameraEmbedPlugin extends Plugin {
     await this.loadSettings();
 
     this.addSettingTab(new CameraEmbedSettingTab(this.app, this));
-
     // Register custom camera icon with viewBox 0 0 100 100 (required by Obsidian)
     addIcon(
       "camera-icon",
@@ -25,7 +27,14 @@ export default class CameraEmbedPlugin extends Plugin {
     );
 
     this.addRibbonIcon("camera-icon", "Capture photo", () => {
-      void this.captureAndEmbed();
+      // void this.captureAndEmbed();
+      if (this.settings.imagePicker) {
+        new PickerModal(this.app, (result: "camera" | "gallery" | null) => {
+          if (result) void this.captureAndEmbed(result);
+        }).open();
+      } else {
+        void this.captureAndEmbed('camera')
+      }
     });
 
     this.addCommand({
@@ -33,12 +42,18 @@ export default class CameraEmbedPlugin extends Plugin {
       name: "Capture photo and embed",
       icon: "camera-icon",
       callback: () => {
-        void this.captureAndEmbed();
+        if (this.settings.imagePicker) {
+          new PickerModal(this.app, (result: "camera" | "gallery" | null) => {
+            if (result) void this.captureAndEmbed(result);
+          }).open();
+        } else {
+          void this.captureAndEmbed('camera')
+        }
       },
     });
   }
 
-  private async captureAndEmbed() {
+private async captureAndEmbed(source: "camera" | "gallery") {
     // Ensure there's an active markdown editor to insert the image.
     const view = this.app.workspace.getActiveViewOfType(MarkdownView);
     if (!view) {
@@ -53,12 +68,12 @@ export default class CameraEmbedPlugin extends Plugin {
     }
 
     // Open the device camera and let the user capture a photo.
-    const file = await this.pickImageFromCamera();
+    const file = await pickImageFromCamera(source);
     if (!file) return;
 
     let finalFile: Blob | File = file;
     if (this.settings.compressImages) {
-      finalFile = await this.compressImage(file);
+      finalFile = await compressImage(file, this.settings.compressQuality);
     }
 
     // Save the photo into the vault.
@@ -69,8 +84,8 @@ export default class CameraEmbedPlugin extends Plugin {
     const targetFolderPath = await this.ensureTargetFolder(filePath);
     if (targetFolderPath === null) return; // error already shown
 
-    const fileName = this.buildFileName(file);
-    const targetPath = this.getAvailablePath(this.joinPath(targetFolderPath, fileName));
+    const fileName = buildFileName(file);
+    const targetPath = getAvailablePath(this.app.vault, joinPath(targetFolderPath, fileName));
     const created = await this.app.vault.createBinary(targetPath, arrayBuffer);
 
     // Insert a markdown embed for the saved image.
@@ -78,98 +93,12 @@ export default class CameraEmbedPlugin extends Plugin {
     view.editor.replaceSelection(`!${link}`);
   }
 
-  private async compressImage(file: File): Promise<Blob> {
-    return new Promise((resolve, reject) => {
-      new Compressor(file, {
-        quality: this.settings.compressQuality,
-        maxWidth: 1920,
-        maxHeight: 1080,
-        convertSize: 0,
-        success: resolve,
-        error: reject,
-      });
-    });
-  }
-
-  private pickImageFromCamera(): Promise<File | null> {
-    return new Promise((resolve) => {
-      // Mobile browsers use the capture attribute to open the camera.
-      const input = document.createElement("input");
-      input.type = "file";
-      input.accept = "image/*";
-      input.capture = "environment";
-      input.addClass("camera-hidden");
-
-      const timeoutId = setTimeout(() => {
-        input.remove();
-        resolve(null);
-      }, 60_000);
-
-      const cleanup = (file: File | null) => {
-        clearTimeout(timeoutId);
-        input.remove();
-        resolve(file);
-      };
-
-      input.addEventListener("change", () => {
-        const file = input.files && input.files.length > 0 ? input.files[0] : null;
-        cleanup(file as File | null);
-      });
-
-      document.body.appendChild(input);
-      input.click();
-    });
-  }
-
-  private buildFileName(file: File): string {
-    // Use an ISO timestamp to keep filenames sortable.
-    const stamp = new Date().toISOString().replace(/[:.]/g, "-");
-    const fallbackExt = this.extensionFromType(file.type) ?? "jpg";
-    const ext = this.extensionFromName(file.name) ?? fallbackExt;
-    return `photo-${stamp}.${ext}`;
-  }
-
-  private extensionFromName(name: string): string | null {
-    const match = name.match(/\.([a-zA-Z0-9]+)$/);
-    return match?.[1] ?? null;
-  }
-
-  private extensionFromType(mimeType: string): string | null {
-    if (!mimeType.startsWith("image/")) return null;
-    const subtype = mimeType.split("/")[1];
-    if (!subtype) return null;
-    return subtype.replace("jpeg", "jpg");
-  }
-
-  private joinPath(parentPath: string | null, fileName: string): string {
-    if (!parentPath) return fileName; // parentPath is empty string → vault root
-    return `${parentPath}/${fileName}`;
-  }
-
-  private getAvailablePath(path: string): string {
-    // Avoid overwriting existing files by adding a suffix.
-    if (!this.app.vault.getAbstractFileByPath(path)) return path;
-
-    const parts = path.split("/");
-    const name = parts.pop() ?? path;
-    const dir = parts.length > 0 ? `${parts.join("/")}/` : "";
-    const extIndex = name.lastIndexOf(".");
-    const base = extIndex === -1 ? name : name.slice(0, extIndex);
-    const ext = extIndex === -1 ? "" : name.slice(extIndex);
-
-    for (let i = 1; i < 1000; i++) {
-      const candidate = `${dir}${base}-${i}${ext}`;
-      if (!this.app.vault.getAbstractFileByPath(candidate)) return candidate;
-    }
-    return `${dir}${base}-${Date.now()}${ext}`;
-  }
-
   /**
    * Determines the folder path where the photo should be saved,
    * and creates it if missing (when `createFolderIfMissing` is true).
    *
    * @param noteFolderPath – the path of the folder containing the active note
-   *                        (may be empty string if note is in vault root)
+   *                        (maybe empty string if note is in vault root)
    * @returns The normalized target folder path (empty string for vault root),
    *          or `null` if the folder cannot be used/created.
    */
@@ -191,7 +120,7 @@ export default class CameraEmbedPlugin extends Plugin {
         const normalized = normalizePath(target);
 
         // If the folder already exists, return it
-        if (this.folderExists(normalized)) return normalized;
+        if (folderExists(this.app.vault, normalized)) return normalized;
 
         // Otherwise, create it if allowed
         if (!this.settings.createFolderIfMissing) {
@@ -217,7 +146,7 @@ export default class CameraEmbedPlugin extends Plugin {
     }
 
     const normalized = normalizePath(rawPhotosFolder);
-    if (this.folderExists(normalized)) return normalized;
+    if (folderExists(this.app.vault, normalized)) return normalized;
 
     if (!this.settings.createFolderIfMissing) {
       new Notice(`Folder not found: ${normalized}`);
@@ -232,12 +161,6 @@ export default class CameraEmbedPlugin extends Plugin {
       console.error(error);
       return null;
     }
-  }
-
-  /** Helper to check if a folder exists at the given path. */
-    private folderExists(path: string): boolean {
-    const file = this.app.vault.getAbstractFileByPath(path);
-    return file instanceof TFolder;
   }
 
   async loadSettings() {
