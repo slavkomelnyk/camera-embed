@@ -1,4 +1,4 @@
-import {App, PluginSettingTab, Setting} from "obsidian";
+import {App, Platform, PluginSettingTab, Setting} from "obsidian";
 import CameraEmbedPlugin from "./main";
 
 export interface CameraEmbedSettings {
@@ -7,6 +7,7 @@ export interface CameraEmbedSettings {
   saveNearTheNote: boolean;
   compressImages: boolean;
   compressQuality: number;
+  imagePicker: boolean;
 }
 
 export const DEFAULT_SETTINGS: CameraEmbedSettings = {
@@ -15,6 +16,7 @@ export const DEFAULT_SETTINGS: CameraEmbedSettings = {
   saveNearTheNote: false,
   compressImages: false,
   compressQuality: 0.8,
+  imagePicker: false,
 };
 
 
@@ -30,9 +32,10 @@ export class CameraEmbedSettingTab extends PluginSettingTab {
     const { containerEl } = this;
     containerEl.empty();
     new Setting(containerEl)
-      .setName("Android only")
-      .setDesc("This plugin is intended for Android and is not supported on iOS or desktop.");
-
+    .setName("Platform support")
+    .setDesc(
+      "This plugin is primarily designed for Android. Some features may be limited or unavailable on iOS and desktop."
+    );
     new Setting(containerEl).setName("Save images").setHeading();
     new Setting(containerEl)
       .setName("Photos folder")
@@ -101,5 +104,18 @@ export class CameraEmbedSettingTab extends PluginSettingTab {
           })
       )
 
+    new Setting(containerEl).setName("Picker (optional)").setHeading();
+
+    new Setting(containerEl)
+      .setName("Image picker (optional)")
+      .setDesc("Show a prompt to choose between taking a new photo or picking an existing one from the gallery. This option is only relevant for Android, which supports both features. Do nothing on iOS/desktop.")
+      .addToggle((toggle) =>
+        toggle
+          .setValue(this.plugin.settings.imagePicker)
+          .onChange(async (value) => {
+            this.plugin.settings.imagePicker = value;
+            await this.plugin.saveSettings();
+          })
+      );
   }
 }

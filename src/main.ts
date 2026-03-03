@@ -10,6 +10,7 @@ import { DEFAULT_SETTINGS, CameraEmbedSettings, CameraEmbedSettingTab } from "./
 import { compressImage } from "compressor";
 import { buildFileName, folderExists, getAvailablePath, joinPath } from "./file-utils";
 import { pickImageFromCamera } from "./input-utils";
+import {PickerModal} from "./picker-modal";
 
 export default class CameraEmbedPlugin extends Plugin {
   settings: CameraEmbedSettings;
@@ -19,7 +20,6 @@ export default class CameraEmbedPlugin extends Plugin {
     await this.loadSettings();
 
     this.addSettingTab(new CameraEmbedSettingTab(this.app, this));
-
     // Register custom camera icon with viewBox 0 0 100 100 (required by Obsidian)
     addIcon(
       "camera-icon",
@@ -27,7 +27,14 @@ export default class CameraEmbedPlugin extends Plugin {
     );
 
     this.addRibbonIcon("camera-icon", "Capture photo", () => {
-      void this.captureAndEmbed();
+      // void this.captureAndEmbed();
+      if (this.settings.imagePicker) {
+        new PickerModal(this.app, (result: "camera" | "gallery" | null) => {
+          if (result) void this.captureAndEmbed(result);
+        }).open();
+      } else {
+        void this.captureAndEmbed('gallery')
+      }
     });
 
     this.addCommand({
@@ -35,12 +42,18 @@ export default class CameraEmbedPlugin extends Plugin {
       name: "Capture photo and embed",
       icon: "camera-icon",
       callback: () => {
-        void this.captureAndEmbed();
+        if (this.settings.imagePicker) {
+          new PickerModal(this.app, (result: "camera" | "gallery" | null) => {
+            if (result) void this.captureAndEmbed(result);
+          }).open();
+        } else {
+          void this.captureAndEmbed('gallery')
+        }
       },
     });
   }
 
-  private async captureAndEmbed() {
+private async captureAndEmbed(source: "camera" | "gallery") {
     // Ensure there's an active markdown editor to insert the image.
     const view = this.app.workspace.getActiveViewOfType(MarkdownView);
     if (!view) {
@@ -55,7 +68,7 @@ export default class CameraEmbedPlugin extends Plugin {
     }
 
     // Open the device camera and let the user capture a photo.
-    const file = await pickImageFromCamera(true);
+    const file = await pickImageFromCamera(source);
     if (!file) return;
 
     let finalFile: Blob | File = file;

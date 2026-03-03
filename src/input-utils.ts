@@ -1,10 +1,10 @@
-export async function pickImageFromCamera(capture: boolean): Promise<File | null> {
+export async function pickImageFromCamera(source: string = 'gallery'): Promise<File | null> {
     return new Promise((resolve) => {
       // Mobile browsers use the capture attribute to open the camera.
       const input = document.createElement("input");
       input.type = "file";
       input.accept = "image/*";
-      if (capture) {
+      if (source === "camera") {
         input.capture = "environment";
       }
       input.addClass("camera-hidden");
