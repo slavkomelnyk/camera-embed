@@ -1,4 +1,4 @@
-import { App, Modal } from "obsidian";
+import { App, Modal, setIcon } from "obsidian";
 
 export class PickerModal extends Modal {
   private resolve: (value: "camera" | "gallery" | null) => void;
@@ -15,20 +15,25 @@ export class PickerModal extends Modal {
 
     const buttonContainer = contentEl.createDiv({ cls: "picker-modal-buttons" });
 
+    // Camera button
     const cameraBtn = buttonContainer.createEl("button", {
-      // eslint-disable-next-line obsidianmd/ui/sentence-case
-      text: "📷 Take photo",
       cls: "mod-cta"
     });
+    const cameraIcon = cameraBtn.createSpan();
+    setIcon(cameraIcon, "camera");
+    cameraBtn.appendText(" Take photo");
+
     cameraBtn.addEventListener("click", () => {
       this.resolve("camera");
       this.close();
     });
 
-    const galleryBtn = buttonContainer.createEl("button", {
-      // eslint-disable-next-line obsidianmd/ui/sentence-case
-      text: "🖼️ Choose from gallery"
-    });
+    // Gallery button
+    const galleryBtn = buttonContainer.createEl("button");
+    const galleryIcon = galleryBtn.createSpan();
+    setIcon(galleryIcon, "images");
+    galleryBtn.appendText(" Choose from gallery");
+
     galleryBtn.addEventListener("click", () => {
       this.resolve("gallery");
       this.close();

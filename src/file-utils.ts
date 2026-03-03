@@ -1,4 +1,4 @@
-import {TFolder} from "obsidian";
+import {TFolder, Vault} from "obsidian";
 
 export function buildFileName(file: File): string {
     // Use an ISO timestamp to keep filenames sortable.
@@ -25,10 +25,8 @@ export function joinPath(parentPath: string | null, fileName: string): string {
   return `${parentPath}/${fileName}`;
 }
 
-export function getAvailablePath(vault: unknown, path: string): string {
+export function getAvailablePath(vault: Vault, path: string): string {
   // Avoid overwriting existing files by adding a suffix.
-  // @ts-ignore
-  // eslint-disable-next-line @typescript-eslint/no-unsafe-call
   if (!vault.getAbstractFileByPath(path)) return path;
 
   const parts = path.split("/");
@@ -40,17 +38,13 @@ export function getAvailablePath(vault: unknown, path: string): string {
 
   for (let i = 1; i < 1000; i++) {
     const candidate = `${dir}${base}-${i}${ext}`;
-     // @ts-ignore
-     // eslint-disable-next-line @typescript-eslint/no-unsafe-call
     if (!vault.getAbstractFileByPath(candidate)) return candidate;
   }
   return `${dir}${base}-${Date.now()}${ext}`;
 }
 
 /** Helper to check if a folder exists at the given path. */
-export function folderExists(vault: unknown, path: string): boolean {
-  // @ts-ignore
-  // eslint-disable-next-line @typescript-eslint/no-unsafe-call,@typescript-eslint/no-unsafe-assignment
+export function folderExists(vault: Vault, path: string): boolean {
   const file = vault.getAbstractFileByPath(path);
   return file instanceof TFolder;
 }

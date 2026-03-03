@@ -96,7 +96,7 @@ export class CameraEmbedSettingTab extends PluginSettingTab {
       .setDesc("Adjust the quality of compressed images. Lower values result in smaller files but worse quality.")
       .addSlider(slider =>
         slider
-          .setLimits(0, 0.9, 0.05) // min 0.1, max 1, step 0.05
+          .setLimits(0, 0.9, 0.05)
           .setValue(this.plugin.settings.compressQuality)
           .onChange(async (value) => {
             this.plugin.settings.compressQuality = value;
