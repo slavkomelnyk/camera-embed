@@ -1,4 +1,4 @@
-import {App, Platform, PluginSettingTab, Setting} from "obsidian";
+import {App, PluginSettingTab, Setting} from "obsidian";
 import CameraEmbedPlugin from "./main";
 
 export interface CameraEmbedSettings {

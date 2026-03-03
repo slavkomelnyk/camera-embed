@@ -33,7 +33,7 @@ export default class CameraEmbedPlugin extends Plugin {
           if (result) void this.captureAndEmbed(result);
         }).open();
       } else {
-        void this.captureAndEmbed('gallery')
+        void this.captureAndEmbed('camera')
       }
     });
 
@@ -47,7 +47,7 @@ export default class CameraEmbedPlugin extends Plugin {
             if (result) void this.captureAndEmbed(result);
           }).open();
         } else {
-          void this.captureAndEmbed('gallery')
+          void this.captureAndEmbed('camera')
         }
       },
     });
