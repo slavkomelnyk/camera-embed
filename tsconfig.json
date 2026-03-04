@@ -3,13 +3,13 @@
 		"baseUrl": "src",
 		"inlineSourceMap": true,
 		"inlineSources": true,
-		"module": "ESNext",
+		"module": "Node16",
 		"target": "ES6",
 		"allowJs": true,
 		"noImplicitAny": true,
 		"noImplicitThis": true,
 		"noImplicitReturns": true,
-		"moduleResolution": "node",
+		"moduleResolution": "Node16",
 		"importHelpers": true,
 		"noUncheckedIndexedAccess": true,
 		"isolatedModules": true,
@@ -25,6 +25,7 @@
 		]
 	},
 	"include": [
-		"src/**/*.ts"
+		"src/**/*.ts",
+        "eslint.config.mts"
 	]
 }

@@ -1,7 +1,7 @@
 import { App, Modal, setIcon } from "obsidian";
 
 export class PickerModal extends Modal {
-  private resolve: (value: "camera" | "gallery" | null) => void;
+  private readonly resolve: (value: "camera" | "gallery" | null) => void;
 
   constructor(app: App, onChoose: (source: "camera" | "gallery" | null) => void) {
     super(app);

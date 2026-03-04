@@ -15,14 +15,9 @@ export default tseslint.config(
 				...globals.browser,
 			},
 			parserOptions: {
-				projectService: {
-					allowDefaultProject: [
-						'eslint.config.js',
-						'manifest.json'
-					]
-				},
 				tsconfigRootDir: __dirname,
-				extraFileExtensions: ['.json']
+				extraFileExtensions: ['.json'],
+        project: ['./tsconfig.json'],
 			},
 		},
 	},
@@ -35,5 +30,6 @@ export default tseslint.config(
 		"version-bump.mjs",
 		"versions.json",
 		"main.js",
+    "**/*.css",
 	]),
 );

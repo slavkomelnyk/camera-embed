@@ -1,5 +1,5 @@
 import {App, PluginSettingTab, Setting} from "obsidian";
-import CameraEmbedPlugin from "./main";
+import CameraEmbedPlugin from "./main.js";
 
 export interface CameraEmbedSettings {
   photosFolder: string;
