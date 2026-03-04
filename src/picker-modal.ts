@@ -11,18 +11,17 @@ export class PickerModal extends Modal {
   onOpen() {
     const { contentEl } = this;
 
+    // Heading
     contentEl.createEl("h2", { text: "Insert photo" });
 
+    // Container for buttons
     const buttonContainer = contentEl.createDiv({ cls: "picker-modal-buttons" });
 
     // Camera button
-    const cameraBtn = buttonContainer.createEl("button", {
-      cls: "mod-cta"
-    });
+    const cameraBtn = buttonContainer.createEl("button", { cls: "mod-cta" });
     const cameraIcon = cameraBtn.createSpan();
     setIcon(cameraIcon, "camera");
-    cameraBtn.appendText(" Take photo");
-
+    cameraBtn.appendText("Take photo");
     cameraBtn.addEventListener("click", () => {
       this.resolve("camera");
       this.close();
@@ -32,14 +31,13 @@ export class PickerModal extends Modal {
     const galleryBtn = buttonContainer.createEl("button");
     const galleryIcon = galleryBtn.createSpan();
     setIcon(galleryIcon, "images");
-    galleryBtn.appendText(" Choose from gallery");
-
+    galleryBtn.appendText("Choose from gallery");
     galleryBtn.addEventListener("click", () => {
       this.resolve("gallery");
       this.close();
     });
 
-    // Close on Escape
+    // Close modal on Escape
     this.scope.register([], "Escape", () => {
       this.resolve(null);
       this.close();
@@ -47,7 +45,6 @@ export class PickerModal extends Modal {
   }
 
   onClose() {
-    const { contentEl } = this;
-    contentEl.empty();
+    this.contentEl.empty();
   }
 }
