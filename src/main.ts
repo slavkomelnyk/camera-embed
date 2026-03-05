@@ -3,7 +3,6 @@ import {
   Notice,
   Plugin,
   normalizePath,
-  addIcon,
 } from "obsidian";
 
 import { DEFAULT_SETTINGS, CameraEmbedSettings, CameraEmbedSettingTab } from "./settings.js";
