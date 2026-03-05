@@ -1,14 +1,10 @@
 # Changelog
 
 All notable changes to **this project** will be documented in this file.
-## 1.0.7
-- change tag from v1.0.6 to 1.0.7
 
-## 1.0.6
+## 1.0.5 - 1.0.11
 - Fix errors
-
-## 1.0.5
-- Fix errors
+- Add picker menu
 
 ## 1.0.4
 - Added option to save photos near note.
