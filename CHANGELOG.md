@@ -2,7 +2,7 @@
 
 All notable changes to **this project** will be documented in this file.
 
-## 1.0.5 - 1.0.11
+## 1.0.5 - 1.0.12
 - Fix errors
 - Add picker menu
 
