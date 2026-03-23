@@ -1,10 +1,56 @@
 ## Installation
 
-### Install from Releases
 
-1. Download the latest release: [camera-embed.zip](https://github.com/slavkomelnyk/camera-embed/releases/).
-2. Open your file manager and go to `your-vault/.obsidian/plugins/` (make sure hidden files are enabled).
-3. Create a folder named `android-camera/` and unzip the plugin contents there.
+### Install from Releases (Classic Install)
+
+1. Go to the releases page of Camera Embed:
+  https://github.com/slavkomelnyk/camera-embed/releases/
+2. Download the latest release files:
+   - `main.js`
+   - `manifest.json`
+   - `styles.css`
+
+3. Open your vault folder and navigate to:
+   ```
+   .obsidian/plugins/
+   ```
+
+4. Create a folder named:
+   ```
+   camera-embed
+   ```
+
+5. Copy the downloaded files into the folder:
+   ```
+   .obsidian/plugins/camera-embed/
+     ├── main.js
+     ├── manifest.json
+     └── styles.css
+   ```
+
+6. Restart Obsidian.
+
+7. Enable the plugin in:
+   `Settings → Community Plugins`
+
+---
+
+### Install from Releases (Fast Install)
+
+1. Download the latest release:
+   https://github.com/slavkomelnyk/camera-embed/releases/
+2. Extract `camera-embed.zip`.
+3. Move the extracted folder to:
+   ```
+   your-vault/.obsidian/plugins/
+   ```
+4. Ensure the folder name is:
+   ```
+   camera-embed
+   ```
+5. Restart Obsidian and enable the plugin.
+
+---
 
 ## Development Installation
 
