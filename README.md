@@ -46,15 +46,24 @@ You can start capturing and embedding photos in your notes.
 - **Compress Quality**: Set the compression quality (default: 0.8, range: 0 to 1).
 - **Picker Menu**: Enable picker menu to choose gallery or camera.
 
-## Installation 
+## Installation
 
-### From Obsidian Community Plugins (Recommended)
-1. Open Settings → Community plugins → Browse
-2. Search for "Camera Embed"
-3. Click Install, then Enable
+> ⚠️ This plugin is not yet available in the Obsidian Community Plugins store.
 
-### [Manual Installation](MANUAL_INSTALLATION.md)
+### Manual Installation
 
+See: [Manual Installation](MANUAL_INSTALLATION.md)
+
+---
+
+### (Coming Soon) Community Plugins
+
+Once published to the Obsidian Community Plugins marketplace:
+
+1. Open `Settings → Community plugins → Browse`
+2. Search for `Camera Embed`
+3. Click **Install**, then **Enable**
+   
 ---
 ###### Change Log: [CHANGELOG](CHANGELOG.md)
 ###### © 2026 camera-embed MIT
