@@ -63,7 +63,11 @@ Once published to the Obsidian Community Plugins marketplace:
 1. Open `Settings → Community plugins → Browse`
 2. Search for `Camera Embed`
 3. Click **Install**, then **Enable**
-   
+
+## Support
+
+If you have any problems, suggestions, or bug reports, please open an issue on GitHub.
+
 ---
 ###### Change Log: [CHANGELOG](CHANGELOG.md)
 ###### © 2026 camera-embed MIT
