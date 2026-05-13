@@ -1,4 +1,4 @@
-<img width="1200" height="400" alt="Camera Embed" src="https://github.com/user-attachments/assets/39b881de-fef3-4d79-b20b-4664e334f5bc" />
+<img width="1200" height="400" alt="Camera Embed" src="https://github.com/user-attachments/assets/2d81d46a-b70d-451b-85a1-ad563cabe964" />
 
 ## Overview
 
