@@ -2,9 +2,12 @@
 
 All notable changes to **this project** will be documented in this file.
 
-## 1.0.5 - 1.0.12
-- Fix errors
-- Add picker menu
+## 1.0.14
+- Added release workflow GitHub action
+
+## 1.0.5 - 1.0.13
+- Fixed issues preventing successful release publishing
+- Added picker menu to choose camera or gallery input
 
 ## 1.0.4
 - Added option to save photos near note.
@@ -12,18 +15,18 @@ All notable changes to **this project** will be documented in this file.
 ## 1.0.3
 - Updated project dependencies.
 - Refined project structure.
-- Updated code.
+- Refactored internal code for clarity and stability
 
 ## 1.0.2
-- Add Image Compression
-- Add setting to enable/disable photo compression.
-- Add setting to configure compression quality (0-1, default 0.8).
-- Make settings more natural by grouping related options together.
+- Added Image Compression
+- Added setting to enable/disable photo compression.
+- Added setting to configure compression quality (0-1, default 0.8).
+- Made settings more natural by grouping related options together.
 
 ## 1.0.1
-- Fix ribbon icon by embedding a custom SVG.
-- Add Android-only notice in settings UI and docs.
-- Add configurable photos folder setting.
+- Fixed ribbon icon by embedding a custom SVG.
+- Added Android-only notice in settings UI and docs.
+- Added configurable photos folder setting.
 - Initial Android-only camera capture and embed.
 
 ## 1.0.0
