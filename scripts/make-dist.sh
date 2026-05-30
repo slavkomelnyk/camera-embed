@@ -15,9 +15,9 @@ echo "Created dist/ with manifest.json and main.js, styles.css"
 
 # Create zip from inside dist so no extra folder is included
 
-(
-  cd "${DIST_DIR}"
-  zip -r "${ZIP_NAME}" manifest.json main.js styles.css
-)
-
-echo "Created ${DIST_DIR}/${ZIP_NAME}"
+#(
+#  cd "${DIST_DIR}"
+#  zip -r "${ZIP_NAME}" manifest.json main.js styles.css
+#)
+#
+#echo "Created ${DIST_DIR}/${ZIP_NAME}"
