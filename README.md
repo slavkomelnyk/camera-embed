@@ -18,8 +18,7 @@ The **Obsidian Camera Embed** plugin allows Android users to capture photos dire
 <img width="1200" height="400" alt="Usage" src="https://github.com/user-attachments/assets/95ceb496-7ff1-400c-8ef6-8d61ff11bcc0" />
 
 
-Once the plugin is installed and enabled.
-You can start capturing and embedding photos in your notes.
+After enabling the plugin, you can capture and embed photos in your notes.
 
 ### Capture and Embed Photos
 
@@ -28,13 +27,13 @@ You can start capturing and embedding photos in your notes.
    - Alternatively, use the **Capture photo and embed** command from the command palette .
    
 
-1. **Save the Photo**:
+2. **Save the Photo**:
    - The photo will be saved either in the folder next to your note or in a configured photos folder within your vault (configured in settings).
 
-2. **Compression**:
+3. **Compression**:
    - If enabled, the photo will automatically be compressed before being saved, reducing file size based on your chosen quality setting.
 
-3. **Embed in Markdown**:
+4. **Embed in Markdown**:
    - The plugin will automatically insert a markdown image link at the current cursor position in your active note.
 
 ### Settings
@@ -48,27 +47,18 @@ You can start capturing and embedding photos in your notes.
 
 ## Installation
 
-> ⚠️ This plugin is not yet available in the Obsidian Community Plugins store.
+> ⚠️ This plugin is not currently published in the Obsidian Community Plugins store and must be installed manually.
 
 ### Manual Installation
 
-See: [Manual Installation](MANUAL_INSTALLATION.md)
-
----
-
-### (Coming Soon) Community Plugins
-
-Once published to the Obsidian Community Plugins marketplace:
-
-1. Open `Settings → Community plugins → Browse`
-2. Search for `Camera Embed`
-3. Click **Install**, then **Enable**
+See: [MANUAL_INSTALLATION](MANUAL_INSTALLATION.md)
 
 ## Support
 
 If you have any problems, suggestions, or bug reports, please open an issue on GitHub.
 
 ---
-###### Change Log: [CHANGELOG](CHANGELOG.md)
-###### © 2026 camera-embed MIT
----
+
+© 2026 Obsidian Camera Embed Plugin  
+Released under the MIT License  
+[CHANGELOG](CHANGELOG.md)

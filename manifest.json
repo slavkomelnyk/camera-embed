@@ -5,6 +5,6 @@
 	"minAppVersion": "1.4.0",
 	"description": "Capture and compress a photo on Android, then embed it into your note.",
 	"author": "Sviatoslav Melnyk",
-	"authorUrl": "",
+	"authorUrl": "https://github.com/slavkomelnyk/",
 	"isDesktopOnly": false
 }
