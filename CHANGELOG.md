@@ -1,6 +1,6 @@
 # Changelog
 
-All notable changes to **this project** will be documented in this file. or in GitHub Wiki
+All notable changes to **this project** will be documented in this file.
 
 ## 1.1.0
 - Add artifact attestation in release.yml.

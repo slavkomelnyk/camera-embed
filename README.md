@@ -47,7 +47,11 @@ After enabling the plugin, you can capture and embed photos in your notes.
 
 ## Installation
 
-See: [MANUAL_INSTALLATION](https://github.com/slavkomelnyk/camera-embed/wiki/Installation)
+> ⚠️ This plugin is not currently published in the Obsidian Community Plugins store and must be installed manually.
+
+### Manual Installation
+
+See: [MANUAL_INSTALLATION](MANUAL_INSTALLATION.md)
 
 ## Support
 
@@ -57,4 +61,4 @@ If you have any problems, suggestions, or bug reports, please open an issue on G
 
 © 2026 Obsidian Camera Embed Plugin  
 Released under the MIT License  
-[CHANGELOG](https://github.com/slavkomelnyk/camera-embed/wiki/Changelog)
+[CHANGELOG](CHANGELOG.md)
