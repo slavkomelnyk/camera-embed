@@ -2,6 +2,17 @@
 
 All notable changes to **this project** will be documented in this file.
 
+## 1.1.0
+- Add artifact attestation in release.yml.
+- Updated Changelog
+
+## 1.0.16
+- Fixed readme
+- Added authorUrl
+
+## 1.0.15
+- Polished Changelog.md
+
 ## 1.0.14
 - Added release workflow GitHub action
 
