@@ -53,7 +53,7 @@ See: [MANUAL_INSTALLATION](https://github.com/slavkomelnyk/camera-embed/blob/mai
 
 ## Support
 
-If you have any problems, suggestions, or bug reports, please open an issue on GitHub.
+If you have any problems, suggestions, or bug reports, please open an issue on [GitHub](https://github.com/slavkomelnyk/camera-embed/issues).
 
 ---
 
