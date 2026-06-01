@@ -1,4 +1,4 @@
-<img width="1200" height="400" alt="Camera Embed" src="https://github.com/user-attachments/assets/2d81d46a-b70d-451b-85a1-ad563cabe964" />
+<img alt="Camera Embed" src="https://github.com/user-attachments/assets/2d81d46a-b70d-451b-85a1-ad563cabe964" />
 
 ## Overview
 
@@ -6,7 +6,7 @@ The **Obsidian Camera Embed** plugin allows Android users to capture photos dire
 
 ## Features
 
-<img width="1200" height="400" alt="Features" src="https://github.com/user-attachments/assets/a560059a-d66e-4faf-b10e-090699070ded" />
+<img alt="Features" src="https://github.com/user-attachments/assets/a560059a-d66e-4faf-b10e-090699070ded" />
 
 - Use the ribbon button or command palette to capture a photo on Android.
 - Photos are saved next to the note or in a configurable vault folder.
@@ -15,7 +15,7 @@ The **Obsidian Camera Embed** plugin allows Android users to capture photos dire
 
 ## Usage
 
-<img width="1200" height="400" alt="Usage" src="https://github.com/user-attachments/assets/95ceb496-7ff1-400c-8ef6-8d61ff11bcc0" />
+<img alt="Usage" src="https://github.com/user-attachments/assets/95ceb496-7ff1-400c-8ef6-8d61ff11bcc0" />
 
 
 After enabling the plugin, you can capture and embed photos in your notes.
