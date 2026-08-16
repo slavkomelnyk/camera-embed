@@ -165,7 +165,7 @@ export class GalleryModal extends Modal {
       const file = this.app.vault.getAbstractFileByPath(path);
       if (!(file instanceof TFile)) continue;
       try {
-        await this.app.fileManager.trashFile(file);
+        await this.app.vault.delete(file);
         deleted++;
       } catch (error) {
         console.error("Camera Embed: failed to delete gallery photo", path, error);
@@ -187,7 +187,7 @@ export class GalleryModal extends Modal {
         modal.close();
       };
       modal.titleEl.setText("Delete photos?");
-      modal.contentEl.createEl("p", { text: `Move ${count} selected photo${count === 1 ? "" : "s"} to the Obsidian trash?` });
+      modal.contentEl.createEl("p", { text: `Delete ${count} selected photo${count === 1 ? "" : "s"} from the vault?` });
       const buttons = modal.contentEl.createDiv({ cls: "modal-button-container" });
       buttons.createEl("button", { text: "Cancel" }).addEventListener("click", () => finish(false));
       buttons.createEl("button", { text: "Delete", cls: "mod-warning" }).addEventListener("click", () => finish(true));
@@ -258,6 +258,5 @@ export class GalleryModal extends Modal {
     return `${base} ${Date.now()}${extension}`;
   }
 
-  private cancel() { this.onChoose([]); this.close(); }
   onClose() { this.opened = false; this.scanId++; this.contentEl.empty(); }
 }
