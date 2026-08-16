@@ -2,8 +2,6 @@ import { App, Modal, Notice, TFile, setIcon } from "obsidian";
 
 const IMAGE_EXTENSIONS = new Set(["jpg", "jpeg", "png", "gif", "webp", "bmp", "svg", "avif"]);
 
-type TrashCapableFileManager = { [key: string]: unknown };
-
 export class GalleryModal extends Modal {
   private readonly onChoose: (files: TFile[]) => void;
   private readonly photosFolder: string;
@@ -35,7 +33,6 @@ export class GalleryModal extends Modal {
     setIcon(title, "images");
     title.createSpan({ text: "Gallery" });
     this.selectionLabel = header.createDiv({ cls: "camera-gallery-selection" });
-
     const toolbar = contentEl.createDiv({ cls: "camera-gallery-toolbar" });
     const take = toolbar.createEl("button", { cls: "mod-cta" });
     setIcon(take, "camera");
@@ -45,10 +42,8 @@ export class GalleryModal extends Modal {
     setIcon(upload, "upload");
     upload.createSpan({ text: "Upload to gallery" });
     upload.addEventListener("click", () => void this.uploadToGallery());
-
     this.status = contentEl.createDiv({ cls: "camera-gallery-status" });
     this.grid = contentEl.createDiv({ cls: "camera-gallery-grid" });
-
     const footer = contentEl.createDiv({ cls: "camera-gallery-footer" });
     this.deleteButton = footer.createEl("button", { text: "Delete", cls: "camera-gallery-delete" });
     this.deleteButton.addEventListener("click", () => void this.deleteSelected());
@@ -167,7 +162,7 @@ export class GalleryModal extends Modal {
       const file = this.app.vault.getAbstractFileByPath(path);
       if (!(file instanceof TFile)) continue;
       try {
-        await this.trashFile(file);
+        await this.app.fileManager.trashFile(file);
         deleted++;
       } catch (error) {
         console.error("Camera Embed: failed to delete gallery photo", path, error);
@@ -176,16 +171,6 @@ export class GalleryModal extends Modal {
     this.selected.clear();
     if (deleted > 0) new Notice(`Deleted ${deleted} photo${deleted === 1 ? "" : "s"}.`);
     await this.scanVault();
-  }
-
-  private async trashFile(file: TFile) {
-    const fileManager = this.app.fileManager as unknown as TrashCapableFileManager;
-    const trashFile = fileManager["trashFile"];
-    if (typeof trashFile === "function") {
-      await (trashFile as (file: TFile) => Promise<void>).call(this.app.fileManager, file);
-      return;
-    }
-    await this.app.vault.delete(file);
   }
 
   private confirmDelete(count: number): Promise<boolean> {
@@ -199,7 +184,7 @@ export class GalleryModal extends Modal {
         modal.close();
       };
       modal.titleEl.setText("Delete photos?");
-      modal.contentEl.createEl("p", { text: `Delete ${count} selected photo${count === 1 ? "" : "s"} from the vault?` });
+      modal.contentEl.createEl("p", { text: `Move ${count} selected photo${count === 1 ? "" : "s"} to the Obsidian trash?` });
       const buttons = modal.contentEl.createDiv({ cls: "modal-button-container" });
       buttons.createEl("button", { text: "Cancel" }).addEventListener("click", () => finish(false));
       buttons.createEl("button", { text: "Delete", cls: "mod-warning" }).addEventListener("click", () => finish(true));
