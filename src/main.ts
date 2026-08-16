@@ -1,99 +1,158 @@
-import { MarkdownView, Notice, Plugin, TFile, normalizePath } from "obsidian";
+import {
+  MarkdownView,
+  Notice,
+  Plugin,
+  normalizePath,
+} from "obsidian";
+
 import { DEFAULT_SETTINGS, CameraEmbedSettings, CameraEmbedSettingTab } from "./settings.js";
 import { compressImage } from "./compressor.js";
 import { buildFileName, folderExists, getAvailablePath, joinPath } from "./file-utils.js";
-import { pickImages } from "./input-utils.js";
-import { GalleryModal } from "./gallery-modal.js";
+import { pickImageFromCamera } from "./input-utils.js";
+import {PickerModal} from "./picker-modal.js";
 
 export default class CameraEmbedPlugin extends Plugin {
-  settings: CameraEmbedSettings = DEFAULT_SETTINGS;
+  settings: CameraEmbedSettings;
 
   async onload() {
+    // Load persisted settings before wiring UI.
     await this.loadSettings();
-    this.normalizeGallerySettings();
-    await this.saveSettings();
+
     this.addSettingTab(new CameraEmbedSettingTab(this.app, this));
-    this.addRibbonIcon("camera", "Capture photo", () => void this.capturePhoto());
-    this.addCommand({ id: "capture-photo-embed", name: "Capture photo and embed", icon: "camera", callback: () => void this.capturePhoto() });
-    this.addCommand({ id: "open-gallery", name: "Open camera gallery", icon: "images", callback: () => this.openGallery() });
+
+    this.addRibbonIcon("camera", "Capture photo", () => {
+      // void this.captureAndEmbed();
+      if (this.settings.imagePicker) {
+        new PickerModal(this.app, (result: "camera" | "gallery" | null) => {
+          if (result) void this.captureAndEmbed(result);
+        }).open();
+      } else {
+        void this.captureAndEmbed('camera')
+      }
+    });
+
+    this.addCommand({
+      id: "capture-photo-embed",
+      name: "Capture photo and embed",
+      icon: "camera",
+      callback: () => {
+        if (this.settings.imagePicker) {
+          new PickerModal(this.app, (result: "camera" | "gallery" | null) => {
+            if (result) void this.captureAndEmbed(result);
+          }).open();
+        } else {
+          void this.captureAndEmbed('camera')
+        }
+      },
+    });
   }
 
-  private normalizeGallerySettings() {
-    if (this.settings.galleryEnabled) this.settings.saveNearTheNote = false;
-  }
-
-  private capturePhoto() {
-    if (this.settings.galleryEnabled) this.openGallery();
-    else void this.captureDirectly();
-  }
-
-  private openGallery() {
+private async captureAndEmbed(source: "camera" | "gallery") {
+    // Ensure there's an active markdown editor to insert the image.
     const view = this.app.workspace.getActiveViewOfType(MarkdownView);
-    if (!view?.file) {
-      new Notice("Open a Markdown note before using the camera gallery.");
-      return;
-    }
-    const folder = this.settings.photosFolder.trim();
-    if (!folder) {
-      new Notice("Set a Photos folder in Camera Embed settings before using the gallery.");
-      return;
-    }
-    new GalleryModal(this.app, folder, this.settings.createFolderIfMissing, (files) => {
-      if (files.length > 0) void this.embedVaultFiles(files, view);
-    }).open();
-  }
-
-  private async captureDirectly() {
-    const view = this.app.workspace.getActiveViewOfType(MarkdownView);
-    if (!view?.file) {
+    if (!view) {
       new Notice("Please open a Markdown note to insert the photo.");
       return;
     }
-    const files = await pickImages("camera");
-    if (files.length > 0) await this.saveAndEmbed(files, view);
-  }
 
-  private async embedVaultFiles(files: TFile[], view: MarkdownView) {
     const activeFile = view.file;
-    if (!activeFile) return;
-    const links = files.map((file) => `!${this.app.fileManager.generateMarkdownLink(file, activeFile.path)}`);
-    view.editor.replaceSelection(links.join("\n"));
-  }
-
-  private async saveAndEmbed(files: File[], view: MarkdownView) {
-    const activeFile = view.file;
-    if (!activeFile) return;
-    const targetFolderPath = await this.ensureTargetFolder(activeFile.parent?.path);
-    if (targetFolderPath === null) return;
-    const links: string[] = [];
-    for (const file of files) {
-      let finalFile: Blob | File = file;
-      if (this.settings.compressImages) finalFile = await compressImage(file, this.settings.compressQuality);
-      const targetPath = getAvailablePath(this.app.vault, joinPath(targetFolderPath, buildFileName(file)));
-      const created = await this.app.vault.createBinary(targetPath, await finalFile.arrayBuffer());
-      links.push(`!${this.app.fileManager.generateMarkdownLink(created, activeFile.path)}`);
+    if (!activeFile) {
+      new Notice("No active note to insert the photo.");
+      return;
     }
-    view.editor.replaceSelection(links.join("\n"));
+
+    // Open the device camera and let the user capture a photo.
+    const file = await pickImageFromCamera(source);
+    if (!file) return;
+
+    let finalFile: Blob | File = file;
+    if (this.settings.compressImages) {
+      finalFile = await compressImage(file, this.settings.compressQuality);
+    }
+
+    // Save the photo into the vault.
+    const arrayBuffer = await finalFile.arrayBuffer();
+    const filePath = activeFile.parent?.path; // e.g. "news" or "" (if note in root)
+
+    // Determine the target folder based on settings
+    const targetFolderPath = await this.ensureTargetFolder(filePath);
+    if (targetFolderPath === null) return; // error already shown
+
+    const fileName = buildFileName(file);
+    const targetPath = getAvailablePath(this.app.vault, joinPath(targetFolderPath, fileName));
+    const created = await this.app.vault.createBinary(targetPath, arrayBuffer);
+
+    // Insert a markdown embed for the saved image.
+    const link = this.app.fileManager.generateMarkdownLink(created, activeFile.path);
+    view.editor.replaceSelection(`!${link}`);
   }
 
+  /**
+   * Determines the folder path where the photo should be saved,
+   * and creates it if missing (when `createFolderIfMissing` is true).
+   *
+   * @param noteFolderPath – the path of the folder containing the active note
+   *                        (maybe empty string if note is in vault root)
+   * @returns The normalized target folder path (empty string for vault root),
+   *          or `null` if the folder cannot be used/created.
+   */
   private async ensureTargetFolder(noteFolderPath: string | undefined): Promise<string | null> {
-    const raw = this.settings.photosFolder.trim();
-    const target = this.settings.saveNearTheNote
-      ? (raw ? (noteFolderPath ? `${noteFolderPath}/${raw}` : raw) : (noteFolderPath ?? ""))
-      : raw;
-    const normalized = normalizePath(target);
-    if (normalized === "") return "";
+    const rawPhotosFolder = this.settings.photosFolder.trim();
+    const saveNear = this.settings.saveNearTheNote;
+
+    // --- Case A: Save near the note ---
+    if (saveNear) {
+      // noteFolderPath is guaranteed to exist because the note exists
+      const baseFolder = noteFolderPath ?? "";
+
+      if (rawPhotosFolder === "") {
+        // Save directly in the note's folder
+        return baseFolder; // may be "" (vault root)
+      } else {
+        // Save in note's folder + photosFolder
+        const target = baseFolder ? `${baseFolder}/${rawPhotosFolder}` : rawPhotosFolder;
+        const normalized = normalizePath(target);
+
+        // If the folder already exists, return it
+        if (folderExists(this.app.vault, normalized)) return normalized;
+
+        // Otherwise, create it if allowed
+        if (!this.settings.createFolderIfMissing) {
+          new Notice(`Folder not found: ${normalized}`);
+          return null;
+        }
+
+        try {
+          await this.app.vault.createFolder(normalized);
+          return normalized;
+        } catch (error) {
+          new Notice(`Failed to create folder: ${normalized}`);
+          console.error(error);
+          return null;
+        }
+      }
+    }
+
+    // --- Case B: Global photos folder (not near the note) ---
+    if (rawPhotosFolder === "") {
+      // Save in vault root
+      return "";
+    }
+
+    const normalized = normalizePath(rawPhotosFolder);
     if (folderExists(this.app.vault, normalized)) return normalized;
+
     if (!this.settings.createFolderIfMissing) {
       new Notice(`Folder not found: ${normalized}`);
       return null;
     }
+
     try {
       await this.app.vault.createFolder(normalized);
       return normalized;
     } catch (error) {
-      console.error("Camera Embed: failed to create folder", error);
       new Notice(`Failed to create folder: ${normalized}`);
+      console.error(error);
       return null;
     }
   }
@@ -102,5 +161,7 @@ export default class CameraEmbedPlugin extends Plugin {
     this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData() as Partial<CameraEmbedSettings>);
   }
 
-  async saveSettings() { await this.saveData(this.settings); }
+  async saveSettings() {
+    await this.saveData(this.settings);
+  }
 }
