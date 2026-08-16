@@ -54,13 +54,16 @@ export class GalleryModal extends Modal {
   private async scanVault() {
     const currentScan = ++this.scanId;
     this.status.setText("Scanning vault…");
-    this.grid.empty();
-    this.items = [];
-    this.selected.clear();
-    this.updateSelection();
     const files = this.app.vault.getFiles()
       .filter((file) => IMAGE_EXTENSIONS.has(file.extension.toLowerCase()))
       .sort((a, b) => b.stat.mtime - a.stat.mtime);
+
+    const paths = new Set(files.map((file) => file.path));
+    this.selected.forEach((path) => { if (!paths.has(path)) this.selected.delete(path); });
+    this.grid.empty();
+    this.items = [];
+    this.updateSelection();
+
     for (let index = 0; index < files.length; index++) {
       if (currentScan !== this.scanId) return;
       const file = files[index];
@@ -84,12 +87,35 @@ export class GalleryModal extends Modal {
     image.loading = "lazy";
     const badge = item.createDiv({ cls: "camera-gallery-badge" });
     item.createDiv({ cls: "camera-gallery-name", text: file.name });
+    this.updateItemSelection(item, badge, file.path);
     item.addEventListener("click", () => {
       if (this.selected.has(file.path)) this.selected.delete(file.path);
       else this.selected.add(file.path);
       this.updateItemSelection(item, badge, file.path);
       this.updateSelection();
     });
+  }
+
+  private addSavedFile(file: TFile) {
+    if (!IMAGE_EXTENSIONS.has(file.extension.toLowerCase())) return;
+    if (this.items.some((item) => item.path === file.path)) return;
+    this.items.unshift(file);
+    const item = this.grid.createDiv({ cls: "camera-gallery-item" });
+    item.dataset.path = file.path;
+    const image = item.createEl("img", { cls: "camera-gallery-thumbnail" });
+    image.src = this.app.vault.getResourcePath(file);
+    image.alt = file.path;
+    image.loading = "eager";
+    const badge = item.createDiv({ cls: "camera-gallery-badge" });
+    item.createDiv({ cls: "camera-gallery-name", text: file.name });
+    this.updateItemSelection(item, badge, file.path);
+    item.addEventListener("click", () => {
+      if (this.selected.has(file.path)) this.selected.delete(file.path);
+      else this.selected.add(file.path);
+      this.updateItemSelection(item, badge, file.path);
+      this.updateSelection();
+    });
+    this.status.setText(`${this.items.length.toLocaleString()} photos`);
   }
 
   private updateItemSelection(item: HTMLElement, badge: HTMLElement, path: string) {
@@ -137,8 +163,11 @@ export class GalleryModal extends Modal {
       const file = input.files?.[0];
       input.remove();
       if (!file) return;
-      await this.saveToGallery(file);
-      if (this.isOpen) await this.scanVault();
+      const saved = await this.saveToGallery(file);
+      if (saved && this.isOpen) {
+        this.addSavedFile(saved);
+        void this.refreshInBackground();
+      }
     });
     document.body.appendChild(input);
     input.click();
@@ -157,32 +186,46 @@ export class GalleryModal extends Modal {
     input.addEventListener("change", async () => {
       const files = input.files ? Array.from(input.files) : [];
       input.remove();
-      for (const file of files) await this.saveToGallery(file);
-      if (files.length && this.isOpen) await this.scanVault();
+      const savedFiles: TFile[] = [];
+      for (const file of files) {
+        const saved = await this.saveToGallery(file);
+        if (saved) savedFiles.push(saved);
+      }
+      if (this.isOpen) {
+        for (const saved of savedFiles) this.addSavedFile(saved);
+        if (savedFiles.length) void this.refreshInBackground();
+      }
     });
     document.body.appendChild(input);
     input.click();
   }
 
-  private async saveToGallery(file: File) {
+  private async refreshInBackground() {
+    await new Promise<void>((resolve) => window.setTimeout(resolve, 250));
+    if (this.isOpen) await this.scanVault();
+  }
+
+  private async saveToGallery(file: File): Promise<TFile | null> {
     if (!this.photosFolder) {
       new Notice("Set a Photos folder in Camera Embed settings first.");
-      return;
+      return null;
     }
     try {
       if (!this.app.vault.getAbstractFileByPath(this.photosFolder)) {
         if (!this.createFolderIfMissing) {
           new Notice(`Photos folder not found: ${this.photosFolder}`);
-          return;
+          return null;
         }
         await this.app.vault.createFolder(this.photosFolder);
       }
       const path = this.getUniquePath(`${this.photosFolder}/${file.name}`);
-      await this.app.vault.createBinary(path, await file.arrayBuffer());
+      const created = await this.app.vault.createBinary(path, await file.arrayBuffer());
       new Notice(`Added ${file.name} to gallery.`);
+      return created;
     } catch (error) {
       console.error("Camera Embed: gallery save failed", error);
       new Notice(`Could not save ${file.name} to the gallery.`);
+      return null;
     }
   }
 
