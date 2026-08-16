@@ -2,22 +2,6 @@
 
 All notable changes to **this project** will be documented in this file.
 
-## 1.1.1
-- Added custom Gallery.
-- Added photo selection.
-- Added **Use It** and **Delete** buttons.
-- Added **Take photo to gallery**.
-- Added **Upload to gallery**.
-- Added automatic Gallery refresh.
-- Added scrolling for many photos.
-- Added lazy loading for photos.
-- Photos are saved to the configured `photosFolder`.
-- Gallery disables `saveNearTheNote`.
-- Removed the old image picker.
-- Improved Gallery performance.
-- Updated to Obsidian **1.13+ API**.
-- Improved settings UI.
-
 ## 1.1.0
 - Add artifact attestation in release.yml.
 - Updated Changelog
