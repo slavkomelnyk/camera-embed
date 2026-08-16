@@ -2,10 +2,7 @@
 
 All notable changes to **this project** will be documented in this file.
 
-## 1.2.1
-- Fixed build.
-
-## 1.2.0
+## 1.1.1
 - Added custom Gallery.
 - Added photo selection.
 - Added **Use It** and **Delete** buttons.
