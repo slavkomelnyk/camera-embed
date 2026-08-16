@@ -3,15 +3,17 @@
 }
 
 .picker-modal-buttons {
-    display: flex;
-    flex-direction: column;
-    gap: var(--size-4-2);
-    margin-top: var(--size-4-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--size-4-2);
+  margin-top: var(--size-4-4);
 }
 
 .picker-modal-buttons button {
-    width: 100%;
-    justify-content: center;
+  width: 100%;
+  justify-content: center;
+  display: inline-flex;
+  align-items: center;
 }
 
 .picker-modal-buttons button svg {
@@ -21,7 +23,89 @@
   vertical-align: middle;
 }
 
-.picker-modal-buttons button {
+.camera-gallery-modal {
+  width: min(900px, 90vw);
+  max-height: 85vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.camera-gallery-header,
+.camera-gallery-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--size-4-2);
+}
+
+.camera-gallery-title {
   display: inline-flex;
   align-items: center;
+  gap: var(--size-4-1);
+  font-weight: 600;
+}
+
+.camera-gallery-selection {
+  color: var(--text-muted);
+  font-size: var(--font-ui-small);
+}
+
+.camera-gallery-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
+  overflow-y: auto;
+  padding: 12px 0;
+}
+
+.camera-gallery-item {
+  position: relative;
+  aspect-ratio: 1;
+  overflow: hidden;
+  border-radius: 6px;
+  cursor: pointer;
+  background: var(--background-secondary);
+  border: 2px solid transparent;
+}
+
+.camera-gallery-item.is-selected {
+  border-color: var(--interactive-accent);
+}
+
+.camera-gallery-thumbnail {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;
+}
+
+.camera-gallery-badge {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  min-width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--interactive-accent);
+  color: var(--text-on-accent);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.camera-gallery-footer {
+  padding-top: 8px;
+}
+
+@media (max-width: 600px) {
+  .camera-gallery-modal {
+    width: 96vw;
+    max-height: 90vh;
+  }
+
+  .camera-gallery-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
 }
