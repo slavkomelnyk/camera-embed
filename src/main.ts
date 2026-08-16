@@ -3,7 +3,6 @@ import { DEFAULT_SETTINGS, CameraEmbedSettings, CameraEmbedSettingTab } from "./
 import { compressImage } from "./compressor.js";
 import { buildFileName, folderExists, getAvailablePath, joinPath } from "./file-utils.js";
 import { pickImages } from "./input-utils.js";
-import { PickerModal } from "./picker-modal.js";
 import { GalleryModal } from "./gallery-modal.js";
 
 export default class CameraEmbedPlugin extends Plugin {
@@ -14,8 +13,8 @@ export default class CameraEmbedPlugin extends Plugin {
     this.normalizeGallerySettings();
     await this.saveSettings();
     this.addSettingTab(new CameraEmbedSettingTab(this.app, this));
-    this.addRibbonIcon("camera", "Capture photo", () => this.openPicker());
-    this.addCommand({ id: "capture-photo-embed", name: "Capture photo and embed", icon: "camera", callback: () => this.openPicker() });
+    this.addRibbonIcon("camera", "Capture photo", () => void this.capturePhoto());
+    this.addCommand({ id: "capture-photo-embed", name: "Capture photo and embed", icon: "camera", callback: () => void this.capturePhoto() });
     this.addCommand({ id: "open-gallery", name: "Open camera gallery", icon: "images", callback: () => this.openGallery() });
   }
 
@@ -23,14 +22,9 @@ export default class CameraEmbedPlugin extends Plugin {
     if (this.settings.galleryEnabled) this.settings.saveNearTheNote = false;
   }
 
-  private openPicker() {
-    if (this.settings.galleryEnabled) return this.openGallery();
-    if (this.settings.imagePicker) {
-      new PickerModal(this.app, (result: "camera" | "gallery" | null) => {
-        if (result === "gallery") this.openGallery();
-        else if (result === "camera") void this.captureFromCamera();
-      }).open();
-    } else void this.captureFromCamera();
+  private capturePhoto() {
+    if (this.settings.galleryEnabled) this.openGallery();
+    else void this.captureDirectly();
   }
 
   private openGallery() {
@@ -44,12 +38,12 @@ export default class CameraEmbedPlugin extends Plugin {
       new Notice("Set a Photos folder in Camera Embed settings before using the gallery.");
       return;
     }
-    new GalleryModal(this.app, folder, (files) => {
+    new GalleryModal(this.app, folder, this.settings.createFolderIfMissing, (files) => {
       if (files.length > 0) void this.embedVaultFiles(files, view);
     }).open();
   }
 
-  private async captureFromCamera() {
+  private async captureDirectly() {
     const view = this.app.workspace.getActiveViewOfType(MarkdownView);
     if (!view?.file) {
       new Notice("Please open a Markdown note to insert the photo.");
@@ -84,11 +78,9 @@ export default class CameraEmbedPlugin extends Plugin {
 
   private async ensureTargetFolder(noteFolderPath: string | undefined): Promise<string | null> {
     const raw = this.settings.photosFolder.trim();
-    const target = this.settings.galleryEnabled
-      ? raw
-      : this.settings.saveNearTheNote
-        ? (raw ? (noteFolderPath ? `${noteFolderPath}/${raw}` : raw) : (noteFolderPath ?? ""))
-        : raw;
+    const target = this.settings.saveNearTheNote
+      ? (raw ? (noteFolderPath ? `${noteFolderPath}/${raw}` : raw) : (noteFolderPath ?? ""))
+      : raw;
     const normalized = normalizePath(target);
     if (normalized === "") return "";
     if (folderExists(this.app.vault, normalized)) return normalized;
@@ -110,7 +102,5 @@ export default class CameraEmbedPlugin extends Plugin {
     this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData() as Partial<CameraEmbedSettings>);
   }
 
-  async saveSettings() {
-    await this.saveData(this.settings);
-  }
+  async saveSettings() { await this.saveData(this.settings); }
 }
