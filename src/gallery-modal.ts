@@ -4,6 +4,7 @@ const IMAGE_EXTENSIONS = new Set(["jpg", "jpeg", "png", "gif", "webp", "bmp", "s
 
 export class GalleryModal extends Modal {
   private readonly onChoose: (files: TFile[]) => void;
+  private readonly photosFolder: string;
   private items: TFile[] = [];
   private selected = new Set<string>();
   private grid!: HTMLElement;
@@ -12,8 +13,9 @@ export class GalleryModal extends Modal {
   private useButton!: HTMLButtonElement;
   private scanId = 0;
 
-  constructor(app: App, onChoose: (files: TFile[]) => void) {
+  constructor(app: App, photosFolder: string, onChoose: (files: TFile[]) => void) {
     super(app);
+    this.photosFolder = photosFolder.trim();
     this.onChoose = onChoose;
   }
 
@@ -21,30 +23,23 @@ export class GalleryModal extends Modal {
     this.modalEl.addClass("camera-gallery-modal-container");
     const { contentEl } = this;
     contentEl.addClass("camera-gallery-modal");
-
     const header = contentEl.createDiv({ cls: "camera-gallery-header" });
     const title = header.createDiv({ cls: "camera-gallery-title" });
     setIcon(title, "images");
     title.createSpan({ text: "Gallery" });
     this.selectionLabel = header.createDiv({ cls: "camera-gallery-selection" });
-
     const toolbar = contentEl.createDiv({ cls: "camera-gallery-toolbar" });
     const upload = toolbar.createEl("button", { cls: "camera-gallery-upload" });
     setIcon(upload, "upload");
     upload.createSpan({ text: "Upload to gallery" });
     upload.addEventListener("click", () => void this.uploadToGallery());
-
     this.status = contentEl.createDiv({ cls: "camera-gallery-status" });
     this.grid = contentEl.createDiv({ cls: "camera-gallery-grid" });
-
     const footer = contentEl.createDiv({ cls: "camera-gallery-footer" });
-    const cancel = footer.createEl("button", { text: "Cancel" });
-    cancel.addEventListener("click", () => this.cancel());
-
+    footer.createEl("button", { text: "Cancel" }).addEventListener("click", () => this.cancel());
     this.useButton = footer.createEl("button", { text: "Use It", cls: "mod-cta" });
     this.useButton.disabled = true;
     this.useButton.addEventListener("click", () => this.useSelected());
-
     void this.scanVault();
   }
 
@@ -55,11 +50,9 @@ export class GalleryModal extends Modal {
     this.items = [];
     this.selected.clear();
     this.updateSelection();
-
     const files = this.app.vault.getFiles()
       .filter((file) => IMAGE_EXTENSIONS.has(file.extension.toLowerCase()))
       .sort((a, b) => b.stat.mtime - a.stat.mtime);
-
     for (let index = 0; index < files.length; index++) {
       if (currentScan !== this.scanId) return;
       const file = files[index];
@@ -83,7 +76,6 @@ export class GalleryModal extends Modal {
     image.loading = "lazy";
     const badge = item.createDiv({ cls: "camera-gallery-badge" });
     item.createDiv({ cls: "camera-gallery-name", text: file.name });
-
     item.addEventListener("click", () => {
       if (this.selected.has(file.path)) this.selected.delete(file.path);
       else this.selected.add(file.path);
@@ -128,33 +120,26 @@ export class GalleryModal extends Modal {
   }
 
   private async uploadToGallery() {
+    if (!this.photosFolder) {
+      new Notice("Set a Photos folder in Camera Embed settings before uploading to the gallery.");
+      return;
+    }
     const input = document.createElement("input");
     input.type = "file";
     input.accept = "image/*";
     input.multiple = true;
     input.className = "camera-hidden";
-
     input.addEventListener("change", async () => {
       const files = input.files ? Array.from(input.files) : [];
       input.remove();
       if (files.length === 0) return;
-
-      const folder = this.getGalleryFolder();
-      if (!folder) {
-        new Notice("Set a Photos folder in Camera Embed settings before uploading to the gallery.");
-        return;
-      }
-
       this.status.setText(`Uploading ${files.length.toLocaleString()} photo${files.length === 1 ? "" : "s"}…`);
       try {
-        await this.ensureFolder(folder);
+        await this.ensureFolder();
         for (const file of files) {
-          await this.app.vault.createBinary(
-            this.getUniquePath(`${folder}/${file.name}`),
-            await file.arrayBuffer(),
-          );
+          await this.app.vault.createBinary(this.getUniquePath(`${this.photosFolder}/${file.name}`), await file.arrayBuffer());
         }
-        new Notice(`${files.length.toLocaleString()} photo${files.length === 1 ? "" : "s"} added to ${folder}.`);
+        new Notice(`${files.length.toLocaleString()} photo${files.length === 1 ? "" : "s"} added to ${this.photosFolder}.`);
         await this.scanVault();
       } catch (error) {
         console.error("Camera Embed: gallery upload failed", error);
@@ -162,24 +147,12 @@ export class GalleryModal extends Modal {
         await this.scanVault();
       }
     });
-
     document.body.appendChild(input);
     input.click();
   }
 
-  private getGalleryFolder(): string | null {
-    const folder = this.pluginSettingsFolder();
-    return folder || null;
-  }
-
-  private pluginSettingsFolder(): string {
-    // GalleryModal does not own settings; the host attaches the configured folder.
-    return (this.app as App & { cameraEmbedPhotosFolder?: string }).cameraEmbedPhotosFolder?.trim() ?? "";
-  }
-
-  private async ensureFolder(folder: string) {
-    if (this.app.vault.getAbstractFileByPath(folder)) return;
-    await this.app.vault.createFolder(folder);
+  private async ensureFolder() {
+    if (!this.app.vault.getAbstractFileByPath(this.photosFolder)) await this.app.vault.createFolder(this.photosFolder);
   }
 
   private getUniquePath(path: string): string {
