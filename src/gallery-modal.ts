@@ -12,6 +12,7 @@ export class GalleryModal extends Modal {
   private selectionLabel!: HTMLElement;
   private status!: HTMLElement;
   private useButton!: HTMLButtonElement;
+  private deleteButton!: HTMLButtonElement;
   private scanId = 0;
 
   constructor(app: App, photosFolder: string, createFolderIfMissing: boolean, onChoose: (files: TFile[]) => void) {
@@ -43,11 +44,14 @@ export class GalleryModal extends Modal {
 
     this.status = contentEl.createDiv({ cls: "camera-gallery-status" });
     this.grid = contentEl.createDiv({ cls: "camera-gallery-grid" });
+
     const footer = contentEl.createDiv({ cls: "camera-gallery-footer" });
-    footer.createEl("button", { text: "Cancel" }).addEventListener("click", () => this.cancel());
+    this.deleteButton = footer.createEl("button", { text: "Delete", cls: "camera-gallery-delete" });
+    this.deleteButton.addEventListener("click", () => void this.deleteSelected());
     this.useButton = footer.createEl("button", { text: "Use It", cls: "mod-cta" });
-    this.useButton.disabled = true;
     this.useButton.addEventListener("click", () => this.useSelected());
+    this.setActionButtonsVisible(false);
+
     void this.scanVault();
   }
 
@@ -133,10 +137,15 @@ export class GalleryModal extends Modal {
     return 0;
   }
 
+  private setActionButtonsVisible(visible: boolean) {
+    this.useButton.toggleVisibility(visible);
+    this.deleteButton.toggleVisibility(visible);
+  }
+
   private updateSelection() {
     const count = this.selected.size;
     this.selectionLabel.setText(count === 0 ? "Select photos" : `${count} selected`);
-    this.useButton.disabled = count === 0;
+    this.setActionButtonsVisible(count > 0);
   }
 
   private useSelected() {
@@ -145,12 +154,33 @@ export class GalleryModal extends Modal {
       const file = this.app.vault.getAbstractFileByPath(path);
       if (file instanceof TFile) files.push(file);
     }
-    if (files.length === 0) {
-      new Notice("No selected photos are available.");
-      return;
-    }
+    if (files.length === 0) return;
     this.onChoose(files);
     this.close();
+  }
+
+  private async deleteSelected() {
+    const paths = Array.from(this.selected);
+    if (paths.length === 0) return;
+
+    const confirmed = window.confirm(`Delete ${paths.length} selected photo${paths.length === 1 ? "" : "s"}?\n\nThis will permanently delete the files from your vault.`);
+    if (!confirmed) return;
+
+    let deleted = 0;
+    for (const path of paths) {
+      const file = this.app.vault.getAbstractFileByPath(path);
+      if (!(file instanceof TFile)) continue;
+      try {
+        await this.app.vault.delete(file);
+        deleted++;
+      } catch (error) {
+        console.error("Camera Embed: failed to delete gallery photo", path, error);
+      }
+    }
+
+    this.selected.clear();
+    if (deleted > 0) new Notice(`Deleted ${deleted} photo${deleted === 1 ? "" : "s"}.`);
+    await this.scanVault();
   }
 
   private async takePhoto() {
