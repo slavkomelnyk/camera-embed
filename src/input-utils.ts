@@ -1,5 +1,3 @@
-import { createEl } from "obsidian";
-
 export async function pickImageFromCamera(source: string = "gallery"): Promise<File | null> {
   const files = await pickImages(source);
   return files[0] ?? null;
@@ -7,8 +5,6 @@ export async function pickImageFromCamera(source: string = "gallery"): Promise<F
 
 export function pickImages(source: string = "gallery"): Promise<File[]> {
   return new Promise((resolve) => {
-    // createEl is an HTMLElement helper, not an Obsidian module export.
-    // Use the body element's helper so this also works on older Obsidian versions.
     const input = document.body.createEl("input", { cls: "camera-hidden", type: "file" });
     input.accept = "image/*";
     input.multiple = source !== "camera";
@@ -26,7 +22,8 @@ export function pickImages(source: string = "gallery"): Promise<File[]> {
     };
 
     input.addEventListener("change", () => {
-      cleanup(input.files ? Array.from(input.files) : []);
+      const files = input.files;
+      cleanup(files ? Array.from(files) : []);
     });
 
     input.click();
