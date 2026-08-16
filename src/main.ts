@@ -8,7 +8,7 @@ import {
 import { DEFAULT_SETTINGS, CameraEmbedSettings, CameraEmbedSettingTab } from "./settings.js";
 import { compressImage } from "./compressor.js";
 import { buildFileName, folderExists, getAvailablePath, joinPath } from "./file-utils.js";
-import { pickImageFromCamera, pickImages } from "./input-utils.js";
+import { pickImages } from "./input-utils.js";
 import { PickerModal } from "./picker-modal.js";
 import { GalleryModal } from "./gallery-modal.js";
 
@@ -49,7 +49,9 @@ export default class CameraEmbedPlugin extends Plugin {
     const files = await pickImages(source);
     if (files.length === 0) return;
 
-    if (source === "gallery" && files.length > 1) {
+    // Gallery selection always goes through our custom gallery UI,
+    // including the single-photo case, so the gallery has one consistent UX.
+    if (source === "gallery") {
       new GalleryModal(this.app, files, (selected) => {
         if (selected.length > 0) void this.saveAndEmbed(selected, view);
       }).open();
