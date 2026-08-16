@@ -1,5 +1,4 @@
 import { App, Modal, Notice, TFile, setIcon } from "obsidian";
-import { pickImages } from "./input-utils.js";
 
 const IMAGE_EXTENSIONS = new Set(["jpg", "jpeg", "png", "gif", "webp", "bmp", "svg", "avif"]);
 
@@ -39,7 +38,7 @@ export class GalleryModal extends Modal {
     take.createSpan({ text: "Take photo to gallery" });
     take.addEventListener("click", () => void this.takePhoto());
 
-    const upload = toolbar.createEl("button");
+    const upload = toolbar.createEl("button", { cls: "camera-gallery-upload" });
     setIcon(upload, "upload");
     upload.createSpan({ text: "Upload to gallery" });
     upload.addEventListener("click", () => void this.uploadToGallery());
@@ -59,50 +58,72 @@ export class GalleryModal extends Modal {
   private async scanVault() {
     const currentScan = ++this.scanId;
     this.status.setText("Scanning vault…");
+
     const files = this.app.vault.getFiles()
       .filter((file) => IMAGE_EXTENSIONS.has(file.extension.toLowerCase()))
       .sort((a, b) => b.stat.mtime - a.stat.mtime);
+
     const paths = new Set(files.map((file) => file.path));
-    this.selected.forEach((path) => { if (!paths.has(path)) this.selected.delete(path); });
+    this.selected.forEach((path) => {
+      if (!paths.has(path)) this.selected.delete(path);
+    });
+
     this.grid.empty();
     this.items = [];
     this.updateSelection();
+
     for (let index = 0; index < files.length; index++) {
       if (currentScan !== this.scanId) return;
       const file = files[index];
       if (!file) continue;
       this.items.push(file);
-      this.createGalleryItem(file);
-      if (index > 0 && index % 100 === 0) await new Promise<void>((resolve) => window.setTimeout(resolve, 0));
+      this.renderItem(file);
+      if (index > 0 && index % 100 === 0) {
+        this.status.setText(`Scanning… ${index.toLocaleString()} images`);
+        await new Promise<void>((resolve) => window.setTimeout(resolve, 0));
+      }
     }
-    if (currentScan === this.scanId) this.status.setText(`${this.items.length.toLocaleString()} photos`);
+
+    if (currentScan === this.scanId) {
+      this.status.setText(`${this.items.length.toLocaleString()} photos`);
+    }
   }
 
-  private createGalleryItem(file: TFile): HTMLElement {
+  private createGalleryItem(file: TFile, eager = false): HTMLElement {
     const item = this.grid.createDiv({ cls: "camera-gallery-item" });
     item.dataset.path = file.path;
+
     const image = item.createEl("img", { cls: "camera-gallery-thumbnail" });
     image.src = this.app.vault.getResourcePath(file);
     image.alt = file.path;
-    image.loading = "lazy";
+    image.loading = eager ? "eager" : "lazy";
+
     const badge = item.createDiv({ cls: "camera-gallery-badge" });
     item.createDiv({ cls: "camera-gallery-name", text: file.name });
     this.updateItemSelection(item, badge, file.path);
+
     item.addEventListener("click", () => {
       if (this.selected.has(file.path)) this.selected.delete(file.path);
       else this.selected.add(file.path);
       this.updateItemSelection(item, badge, file.path);
       this.updateSelection();
     });
+
     return item;
   }
 
+  private renderItem(file: TFile) {
+    this.createGalleryItem(file);
+  }
+
+  /** Add a newly-created vault file directly to the UI. No vault rescan is needed. */
   private addSavedFile(file: TFile) {
-    if (!IMAGE_EXTENSIONS.has(file.extension.toLowerCase()) || this.items.some((item) => item.path === file.path)) return;
+    if (!IMAGE_EXTENSIONS.has(file.extension.toLowerCase())) return;
+    if (this.items.some((item) => item.path === file.path)) return;
+
     this.items.unshift(file);
-    const item = this.createGalleryItem(file);
+    const item = this.createGalleryItem(file, true);
     this.grid.prepend(item);
-    this.grid.scrollTop = 0;
     this.status.setText(`${this.items.length.toLocaleString()} photos`);
   }
 
@@ -128,31 +149,76 @@ export class GalleryModal extends Modal {
   }
 
   private useSelected() {
-    const files = Array.from(this.selected)
-      .map((path) => this.app.vault.getAbstractFileByPath(path))
-      .filter((file): file is TFile => file instanceof TFile);
-    if (!files.length) {
+    const files: TFile[] = [];
+    for (const path of this.selected) {
+      const file = this.app.vault.getAbstractFileByPath(path);
+      if (file instanceof TFile) files.push(file);
+    }
+
+    if (files.length === 0) {
       new Notice("No selected photos are available.");
       return;
     }
+
     this.onChoose(files);
     this.close();
   }
 
   private async takePhoto() {
-    const files = await pickImages("camera");
-    if (!files.length || !this.isOpen) return;
-    const saved = await this.saveToGallery(files[0]);
-    if (saved && this.isOpen) this.addSavedFile(saved);
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = "image/*";
+    input.capture = "environment";
+    input.className = "camera-hidden";
+
+    input.addEventListener("change", async () => {
+      const file = input.files?.[0];
+      input.remove();
+      if (!file || !this.isOpen) return;
+
+      const saved = await this.saveToGallery(file);
+      if (saved && this.isOpen) {
+        this.addSavedFile(saved);
+        this.grid.scrollTop = 0;
+      }
+    });
+
+    document.body.appendChild(input);
+    input.click();
   }
 
   private async uploadToGallery() {
-    const files = await pickImages("gallery");
-    if (!files.length || !this.isOpen) return;
-    for (const file of files) {
-      const saved = await this.saveToGallery(file);
-      if (saved && this.isOpen) this.addSavedFile(saved);
+    if (!this.photosFolder) {
+      new Notice("Set a Photos folder in Camera Embed settings before uploading to the gallery.");
+      return;
     }
+
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = "image/*";
+    input.multiple = true;
+    input.className = "camera-hidden";
+
+    input.addEventListener("change", async () => {
+      const files = input.files ? Array.from(input.files) : [];
+      input.remove();
+      if (!this.isOpen) return;
+
+      const savedFiles: TFile[] = [];
+      for (const file of files) {
+        const saved = await this.saveToGallery(file);
+        if (saved) savedFiles.push(saved);
+      }
+
+      // createBinary() already returns the real TFile. Render each file immediately.
+      for (const saved of savedFiles) {
+        if (this.isOpen) this.addSavedFile(saved);
+      }
+      if (savedFiles.length && this.isOpen) this.grid.scrollTop = 0;
+    });
+
+    document.body.appendChild(input);
+    input.click();
   }
 
   private async saveToGallery(file: File): Promise<TFile | null> {
@@ -160,16 +226,16 @@ export class GalleryModal extends Modal {
       new Notice("Set a Photos folder in Camera Embed settings first.");
       return null;
     }
+
     try {
-      let folder = this.app.vault.getAbstractFileByPath(this.photosFolder);
-      if (!folder) {
+      if (!this.app.vault.getAbstractFileByPath(this.photosFolder)) {
         if (!this.createFolderIfMissing) {
           new Notice(`Photos folder not found: ${this.photosFolder}`);
           return null;
         }
         await this.app.vault.createFolder(this.photosFolder);
-        folder = this.app.vault.getAbstractFileByPath(this.photosFolder);
       }
+
       const path = this.getUniquePath(`${this.photosFolder}/${file.name}`);
       const created = await this.app.vault.createBinary(path, await file.arrayBuffer());
       new Notice(`Added ${file.name} to gallery.`);
@@ -183,16 +249,26 @@ export class GalleryModal extends Modal {
 
   private getUniquePath(path: string): string {
     if (!this.app.vault.getAbstractFileByPath(path)) return path;
+
     const dot = path.lastIndexOf(".");
     const base = dot > 0 ? path.slice(0, dot) : path;
     const extension = dot > 0 ? path.slice(dot) : "";
+
     for (let counter = 2; counter < 10000; counter++) {
       const candidate = `${base} ${counter}${extension}`;
       if (!this.app.vault.getAbstractFileByPath(candidate)) return candidate;
     }
+
     return `${base} ${Date.now()}${extension}`;
   }
 
-  private cancel() { this.onChoose([]); this.close(); }
-  onClose() { this.scanId++; this.contentEl.empty(); }
+  private cancel() {
+    this.onChoose([]);
+    this.close();
+  }
+
+  onClose() {
+    this.scanId++;
+    this.contentEl.empty();
+  }
 }
