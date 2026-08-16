@@ -36,7 +36,11 @@ export class GalleryModal extends Modal {
     this.addButton = footer.createEl("button", { text: "Add", cls: "mod-cta" });
     this.addButton.disabled = true;
     this.addButton.addEventListener("click", () => {
-      const selected = [...this.selected].map((index) => this.files[index]);
+      const selected: File[] = [];
+      for (const index of this.selected) {
+        const file = this.files[index];
+        if (file) selected.push(file);
+      }
       this.resolve(selected);
       this.close();
     });
