@@ -1,3 +1,5 @@
+import { createEl } from "obsidian";
+
 export async function pickImageFromCamera(source: string = "gallery"): Promise<File | null> {
   const files = await pickImages(source);
   return files[0] ?? null;
@@ -5,20 +7,18 @@ export async function pickImageFromCamera(source: string = "gallery"): Promise<F
 
 export function pickImages(source: string = "gallery"): Promise<File[]> {
   return new Promise((resolve) => {
-    const input = document.createElement("input");
-    input.type = "file";
+    const input = createEl("input", { cls: "camera-hidden", type: "file" });
     input.accept = "image/*";
     input.multiple = source !== "camera";
-    if (source === "camera") input.capture = "environment";
-    input.addClass("camera-hidden");
+    if (source === "camera") input.setAttribute("capture", "environment");
 
-    const timeoutId = setTimeout(() => {
+    const timeoutId = window.setTimeout(() => {
       input.remove();
       resolve([]);
     }, 60_000);
 
     const cleanup = (files: File[]) => {
-      clearTimeout(timeoutId);
+      window.clearTimeout(timeoutId);
       input.remove();
       resolve(files);
     };
