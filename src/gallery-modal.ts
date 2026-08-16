@@ -59,9 +59,7 @@ export class GalleryModal extends Modal {
   private async scanVault() {
     const currentScan = ++this.scanId;
     this.status.setText("Scanning vault…");
-    const files = this.app.vault.getFiles()
-      .filter((file) => IMAGE_EXTENSIONS.has(file.extension.toLowerCase()))
-      .sort((a, b) => b.stat.mtime - a.stat.mtime);
+    const files = this.app.vault.getFiles().filter((file) => IMAGE_EXTENSIONS.has(file.extension.toLowerCase())).sort((a, b) => b.stat.mtime - a.stat.mtime);
     const paths = new Set(files.map((file) => file.path));
     this.selected.forEach((path) => { if (!paths.has(path)) this.selected.delete(path); });
     this.grid.empty();
@@ -92,8 +90,7 @@ export class GalleryModal extends Modal {
     item.createDiv({ cls: "camera-gallery-name", text: file.name });
     this.updateItemSelection(item, badge, file.path);
     item.addEventListener("click", () => {
-      if (this.selected.has(file.path)) this.selected.delete(file.path);
-      else this.selected.add(file.path);
+      if (this.selected.has(file.path)) this.selected.delete(file.path); else this.selected.add(file.path);
       this.updateItemSelection(item, badge, file.path);
       this.updateSelection();
     });
@@ -117,8 +114,7 @@ export class GalleryModal extends Modal {
     item.createDiv({ cls: "camera-gallery-name", text: file.name });
     this.updateItemSelection(item, badge, file.path);
     item.addEventListener("click", () => {
-      if (this.selected.has(file.path)) this.selected.delete(file.path);
-      else this.selected.add(file.path);
+      if (this.selected.has(file.path)) this.selected.delete(file.path); else this.selected.add(file.path);
       this.updateItemSelection(item, badge, file.path);
       this.updateSelection();
     });
@@ -133,10 +129,7 @@ export class GalleryModal extends Modal {
 
   private getSelectionNumber(path: string): number {
     let number = 0;
-    for (const selectedPath of this.selected) {
-      number++;
-      if (selectedPath === path) return number;
-    }
+    for (const selectedPath of this.selected) { number++; if (selectedPath === path) return number; }
     return 0;
   }
 
@@ -157,18 +150,16 @@ export class GalleryModal extends Modal {
       const file = this.app.vault.getAbstractFileByPath(path);
       if (file instanceof TFile) files.push(file);
     }
-    if (files.length === 0) return;
+    if (!files.length) return;
     this.onChoose(files);
     this.close();
   }
 
   private async deleteSelected() {
     const paths = Array.from(this.selected);
-    if (paths.length === 0) return;
-
+    if (!paths.length) return;
     const confirmed = await this.confirmDelete(paths.length);
     if (!confirmed) return;
-
     let deleted = 0;
     for (const path of paths) {
       const file = this.app.vault.getAbstractFileByPath(path);
@@ -188,20 +179,18 @@ export class GalleryModal extends Modal {
   private confirmDelete(count: number): Promise<boolean> {
     return new Promise((resolve) => {
       const modal = new Modal(this.app);
+      let settled = false;
+      const finish = (value: boolean) => {
+        if (settled) return;
+        settled = true;
+        resolve(value);
+        modal.close();
+      };
       modal.titleEl.setText("Delete photos?");
-      modal.contentEl.createEl("p", {
-        text: `Move ${count} selected photo${count === 1 ? "" : "s"} to the Obsidian trash?`
-      });
+      modal.contentEl.createEl("p", { text: `Move ${count} selected photo${count === 1 ? "" : "s"} to the Obsidian trash?` });
       const buttons = modal.contentEl.createDiv({ cls: "modal-button-container" });
-      buttons.createEl("button", { text: "Cancel" }).addEventListener("click", () => {
-        resolve(false);
-        modal.close();
-      });
-      buttons.createEl("button", { text: "Delete", cls: "mod-warning" }).addEventListener("click", () => {
-        resolve(true);
-        modal.close();
-      });
-      modal.onClose = () => resolve(false);
+      buttons.createEl("button", { text: "Cancel" }).addEventListener("click", () => finish(false));
+      buttons.createEl("button", { text: "Delete", cls: "mod-warning" }).addEventListener("click", () => finish(true));
       modal.open();
     });
   }
@@ -215,10 +204,7 @@ export class GalleryModal extends Modal {
   }
 
   private async uploadToGallery() {
-    if (!this.photosFolder) {
-      new Notice("Set a Photos folder in Camera Embed settings before uploading to the gallery.");
-      return;
-    }
+    if (!this.photosFolder) { new Notice("Set a Photos folder in Camera Embed settings before uploading to the gallery."); return; }
     const input = document.body.createEl("input", { cls: "camera-hidden", type: "file" });
     input.accept = "image/*";
     input.multiple = true;
@@ -231,10 +217,7 @@ export class GalleryModal extends Modal {
     input.remove();
     if (!files.length || !this.opened) return;
     const savedFiles: TFile[] = [];
-    for (const file of files) {
-      const saved = await this.saveToGallery(file);
-      if (saved) savedFiles.push(saved);
-    }
+    for (const file of files) { const saved = await this.saveToGallery(file); if (saved) savedFiles.push(saved); }
     if (!this.opened) return;
     for (const saved of savedFiles) this.addSavedFile(saved);
     if (savedFiles.length) void this.refreshInBackground();
@@ -246,16 +229,10 @@ export class GalleryModal extends Modal {
   }
 
   private async saveToGallery(file: File): Promise<TFile | null> {
-    if (!this.photosFolder) {
-      new Notice("Set a Photos folder in Camera Embed settings first.");
-      return null;
-    }
+    if (!this.photosFolder) { new Notice("Set a Photos folder in Camera Embed settings first."); return null; }
     try {
       if (!this.app.vault.getAbstractFileByPath(this.photosFolder)) {
-        if (!this.createFolderIfMissing) {
-          new Notice(`Photos folder not found: ${this.photosFolder}`);
-          return null;
-        }
+        if (!this.createFolderIfMissing) { new Notice(`Photos folder not found: ${this.photosFolder}`); return null; }
         await this.app.vault.createFolder(this.photosFolder);
       }
       const path = this.getUniquePath(`${this.photosFolder}/${file.name}`);
@@ -282,10 +259,5 @@ export class GalleryModal extends Modal {
   }
 
   private cancel() { this.onChoose([]); this.close(); }
-
-  onClose() {
-    this.opened = false;
-    this.scanId++;
-    this.contentEl.empty();
-  }
+  onClose() { this.opened = false; this.scanId++; this.contentEl.empty(); }
 }
