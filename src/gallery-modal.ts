@@ -72,7 +72,7 @@ export class GalleryModal extends Modal {
         await new Promise<void>((resolve) => window.setTimeout(resolve, 0));
       }
     }
-    this.status.setText(`${this.items.length.toLocaleString()} photos`);
+    if (currentScan === this.scanId) this.status.setText(`${this.items.length.toLocaleString()} photos`);
   }
 
   private renderItem(file: TFile) {
@@ -136,7 +136,9 @@ export class GalleryModal extends Modal {
     input.addEventListener("change", async () => {
       const file = input.files?.[0];
       input.remove();
-      if (file) await this.saveToGallery(file);
+      if (!file) return;
+      await this.saveToGallery(file);
+      if (this.isOpen) await this.scanVault();
     });
     document.body.appendChild(input);
     input.click();
@@ -156,7 +158,7 @@ export class GalleryModal extends Modal {
       const files = input.files ? Array.from(input.files) : [];
       input.remove();
       for (const file of files) await this.saveToGallery(file);
-      if (files.length) await this.scanVault();
+      if (files.length && this.isOpen) await this.scanVault();
     });
     document.body.appendChild(input);
     input.click();
@@ -178,7 +180,6 @@ export class GalleryModal extends Modal {
       const path = this.getUniquePath(`${this.photosFolder}/${file.name}`);
       await this.app.vault.createBinary(path, await file.arrayBuffer());
       new Notice(`Added ${file.name} to gallery.`);
-      await this.scanVault();
     } catch (error) {
       console.error("Camera Embed: gallery save failed", error);
       new Notice(`Could not save ${file.name} to the gallery.`);
