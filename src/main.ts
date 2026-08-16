@@ -24,18 +24,13 @@ export default class CameraEmbedPlugin extends Plugin {
   }
 
   private openPicker() {
-    if (this.settings.galleryEnabled) {
-      this.openGallery();
-      return;
-    }
+    if (this.settings.galleryEnabled) return this.openGallery();
     if (this.settings.imagePicker) {
       new PickerModal(this.app, (result: "camera" | "gallery" | null) => {
         if (result === "gallery") this.openGallery();
         else if (result === "camera") void this.captureFromCamera();
       }).open();
-    } else {
-      void this.captureFromCamera();
-    }
+    } else void this.captureFromCamera();
   }
 
   private openGallery() {
@@ -49,7 +44,7 @@ export default class CameraEmbedPlugin extends Plugin {
       new Notice("Set a Photos folder in Camera Embed settings before using the gallery.");
       return;
     }
-    new GalleryModal(this.app, (files) => {
+    new GalleryModal(this.app, folder, (files) => {
       if (files.length > 0) void this.embedVaultFiles(files, view);
     }).open();
   }
@@ -76,7 +71,6 @@ export default class CameraEmbedPlugin extends Plugin {
     if (!activeFile) return;
     const targetFolderPath = await this.ensureTargetFolder(activeFile.parent?.path);
     if (targetFolderPath === null) return;
-
     const links: string[] = [];
     for (const file of files) {
       let finalFile: Blob | File = file;
@@ -90,8 +84,6 @@ export default class CameraEmbedPlugin extends Plugin {
 
   private async ensureTargetFolder(noteFolderPath: string | undefined): Promise<string | null> {
     const raw = this.settings.photosFolder.trim();
-    // Gallery mode always uses one global Photos folder. It never stores
-    // gallery/camera imports next to the current note.
     const target = this.settings.galleryEnabled
       ? raw
       : this.settings.saveNearTheNote
