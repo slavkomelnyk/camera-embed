@@ -2,6 +2,8 @@ import { App, Modal, Notice, TFile, setIcon } from "obsidian";
 
 const IMAGE_EXTENSIONS = new Set(["jpg", "jpeg", "png", "gif", "webp", "bmp", "svg", "avif"]);
 
+type TrashCapableFileManager = { [key: string]: unknown };
+
 export class GalleryModal extends Modal {
   private readonly onChoose: (files: TFile[]) => void;
   private readonly photosFolder: string;
@@ -165,7 +167,7 @@ export class GalleryModal extends Modal {
       const file = this.app.vault.getAbstractFileByPath(path);
       if (!(file instanceof TFile)) continue;
       try {
-        await this.app.vault.delete(file);
+        await this.trashFile(file);
         deleted++;
       } catch (error) {
         console.error("Camera Embed: failed to delete gallery photo", path, error);
@@ -174,6 +176,16 @@ export class GalleryModal extends Modal {
     this.selected.clear();
     if (deleted > 0) new Notice(`Deleted ${deleted} photo${deleted === 1 ? "" : "s"}.`);
     await this.scanVault();
+  }
+
+  private async trashFile(file: TFile) {
+    const fileManager = this.app.fileManager as unknown as TrashCapableFileManager;
+    const trashFile = fileManager["trashFile"];
+    if (typeof trashFile === "function") {
+      await (trashFile as (file: TFile) => Promise<void>).call(this.app.fileManager, file);
+      return;
+    }
+    await this.app.vault.delete(file);
   }
 
   private confirmDelete(count: number): Promise<boolean> {
