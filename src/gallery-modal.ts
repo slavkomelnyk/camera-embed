@@ -1,4 +1,6 @@
-import { App, Modal, Notice, TFile, setIcon } from "obsidian";
+import { App, Modal, Notice, TFile, TFolder, normalizePath, setIcon } from "obsidian";
+import { buildFileName, getAvailablePath, joinPath } from "./file-utils.js";
+import { pickImages } from "./input-utils.js";
 
 const IMAGE_EXTENSIONS = new Set(["jpg", "jpeg", "png", "gif", "webp", "bmp", "svg", "avif"]);
 
@@ -16,7 +18,7 @@ export class GalleryModal extends Modal {
 
   constructor(app: App, photosFolder: string, createFolderIfMissing: boolean, onChoose: (files: TFile[]) => void) {
     super(app);
-    this.photosFolder = photosFolder.trim();
+    this.photosFolder = normalizePath(photosFolder.trim()).replace(/^\/+|\/+$/g, "");
     this.createFolderIfMissing = createFolderIfMissing;
     this.onChoose = onChoose;
   }
@@ -25,6 +27,7 @@ export class GalleryModal extends Modal {
     this.modalEl.addClass("camera-gallery-modal-container");
     const { contentEl } = this;
     contentEl.addClass("camera-gallery-modal");
+
     const header = contentEl.createDiv({ cls: "camera-gallery-header" });
     const title = header.createDiv({ cls: "camera-gallery-title" });
     setIcon(title, "images");
@@ -36,6 +39,7 @@ export class GalleryModal extends Modal {
     setIcon(take, "camera");
     take.createSpan({ text: "Take photo to gallery" });
     take.addEventListener("click", () => void this.takePhoto());
+
     const upload = toolbar.createEl("button", { cls: "camera-gallery-upload" });
     setIcon(upload, "upload");
     upload.createSpan({ text: "Upload to gallery" });
@@ -43,23 +47,29 @@ export class GalleryModal extends Modal {
 
     this.status = contentEl.createDiv({ cls: "camera-gallery-status" });
     this.grid = contentEl.createDiv({ cls: "camera-gallery-grid" });
+
     const footer = contentEl.createDiv({ cls: "camera-gallery-footer" });
     footer.createEl("button", { text: "Cancel" }).addEventListener("click", () => this.cancel());
     this.useButton = footer.createEl("button", { text: "Use It", cls: "mod-cta" });
     this.useButton.disabled = true;
     this.useButton.addEventListener("click", () => this.useSelected());
+
     void this.scanVault();
   }
 
   private async scanVault() {
     const currentScan = ++this.scanId;
     this.status.setText("Scanning vault…");
+
     const files = this.app.vault.getFiles()
       .filter((file) => IMAGE_EXTENSIONS.has(file.extension.toLowerCase()))
       .sort((a, b) => b.stat.mtime - a.stat.mtime);
 
     const paths = new Set(files.map((file) => file.path));
-    this.selected.forEach((path) => { if (!paths.has(path)) this.selected.delete(path); });
+    this.selected.forEach((path) => {
+      if (!paths.has(path)) this.selected.delete(path);
+    });
+
     this.grid.empty();
     this.items = [];
     this.updateSelection();
@@ -75,7 +85,10 @@ export class GalleryModal extends Modal {
         await new Promise<void>((resolve) => window.setTimeout(resolve, 0));
       }
     }
-    if (currentScan === this.scanId) this.status.setText(`${this.items.length.toLocaleString()} photos`);
+
+    if (currentScan === this.scanId) {
+      this.status.setText(`${this.items.length.toLocaleString()} photos`);
+    }
   }
 
   private renderItem(file: TFile) {
@@ -88,6 +101,7 @@ export class GalleryModal extends Modal {
     const badge = item.createDiv({ cls: "camera-gallery-badge" });
     item.createDiv({ cls: "camera-gallery-name", text: file.name });
     this.updateItemSelection(item, badge, file.path);
+
     item.addEventListener("click", () => {
       if (this.selected.has(file.path)) this.selected.delete(file.path);
       else this.selected.add(file.path);
@@ -99,7 +113,15 @@ export class GalleryModal extends Modal {
   private addSavedFile(file: TFile) {
     if (!IMAGE_EXTENSIONS.has(file.extension.toLowerCase())) return;
     if (this.items.some((item) => item.path === file.path)) return;
+
     this.items.unshift(file);
+    const item = this.createGalleryItemElement(file);
+    this.grid.prepend(item);
+    this.grid.scrollTop = 0;
+    this.status.setText(`${this.items.length.toLocaleString()} photos`);
+  }
+
+  private createGalleryItemElement(file: TFile): HTMLElement {
     const item = this.grid.createDiv({ cls: "camera-gallery-item" });
     item.dataset.path = file.path;
     const image = item.createEl("img", { cls: "camera-gallery-thumbnail" });
@@ -115,7 +137,7 @@ export class GalleryModal extends Modal {
       this.updateItemSelection(item, badge, file.path);
       this.updateSelection();
     });
-    this.status.setText(`${this.items.length.toLocaleString()} photos`);
+    return item;
   }
 
   private updateItemSelection(item: HTMLElement, badge: HTMLElement, path: string) {
@@ -154,93 +176,100 @@ export class GalleryModal extends Modal {
   }
 
   private async takePhoto() {
-    const input = document.createElement("input");
-    input.type = "file";
-    input.accept = "image/*";
-    input.capture = "environment";
-    input.className = "camera-hidden";
-    input.addEventListener("change", async () => {
-      const file = input.files?.[0];
-      input.remove();
-      if (!file) return;
-      const saved = await this.saveToGallery(file);
-      if (saved && this.isOpen) {
-        this.addSavedFile(saved);
-        void this.refreshInBackground();
-      }
-    });
-    document.body.appendChild(input);
-    input.click();
+    const files = await pickImages("camera");
+    if (!files.length || !this.isOpen) return;
+    const saved = await this.saveToGallery(files[0]);
+    if (saved && this.isOpen) this.addSavedFile(saved);
   }
 
   private async uploadToGallery() {
-    if (!this.photosFolder) {
-      new Notice("Set a Photos folder in Camera Embed settings before uploading to the gallery.");
-      return;
+    const files = await pickImages("gallery");
+    if (!files.length || !this.isOpen) return;
+
+    for (const file of files) {
+      const saved = await this.saveToGallery(file);
+      if (saved && this.isOpen) this.addSavedFile(saved);
     }
-    const input = document.createElement("input");
-    input.type = "file";
-    input.accept = "image/*";
-    input.multiple = true;
-    input.className = "camera-hidden";
-    input.addEventListener("change", async () => {
-      const files = input.files ? Array.from(input.files) : [];
-      input.remove();
-      const savedFiles: TFile[] = [];
-      for (const file of files) {
-        const saved = await this.saveToGallery(file);
-        if (saved) savedFiles.push(saved);
-      }
-      if (this.isOpen) {
-        for (const saved of savedFiles) this.addSavedFile(saved);
-        if (savedFiles.length) void this.refreshInBackground();
-      }
-    });
-    document.body.appendChild(input);
-    input.click();
   }
 
-  private async refreshInBackground() {
-    await new Promise<void>((resolve) => window.setTimeout(resolve, 250));
-    if (this.isOpen) await this.scanVault();
-  }
-
+  /**
+   * Gallery-only storage, using the exact same filename/path helpers as the
+   * normal camera flow. The returned TFile is added to the UI immediately.
+   */
   private async saveToGallery(file: File): Promise<TFile | null> {
     if (!this.photosFolder) {
       new Notice("Set a Photos folder in Camera Embed settings first.");
       return null;
     }
+
     try {
-      if (!this.app.vault.getAbstractFileByPath(this.photosFolder)) {
-        if (!this.createFolderIfMissing) {
-          new Notice(`Photos folder not found: ${this.photosFolder}`);
-          return null;
-        }
-        await this.app.vault.createFolder(this.photosFolder);
+      const folder = await this.ensurePhotosFolder();
+      if (folder === null) return null;
+
+      const targetPath = getAvailablePath(
+        this.app.vault,
+        joinPath(folder, buildFileName(file)),
+      );
+      const created = await this.app.vault.createBinary(targetPath, await file.arrayBuffer());
+
+      // Verify Obsidian can resolve the newly-created file before updating UI.
+      const verified = this.app.vault.getAbstractFileByPath(created.path);
+      if (!(verified instanceof TFile)) {
+        new Notice(`Photo was saved but could not be indexed yet: ${created.name}`);
+        return created;
       }
-      const path = this.getUniquePath(`${this.photosFolder}/${file.name}`);
-      const created = await this.app.vault.createBinary(path, await file.arrayBuffer());
-      new Notice(`Added ${file.name} to gallery.`);
-      return created;
+
+      new Notice(`Added ${created.name} to gallery.`);
+      return verified;
     } catch (error) {
-      console.error("Camera Embed: gallery save failed", error);
-      new Notice(`Could not save ${file.name} to the gallery.`);
+      console.error("Camera Embed: failed to save gallery photo", error);
+      const message = error instanceof Error ? error.message : String(error);
+      new Notice(`Could not save ${file.name} to gallery: ${message}`);
       return null;
     }
   }
 
-  private getUniquePath(path: string): string {
-    if (!this.app.vault.getAbstractFileByPath(path)) return path;
-    const dot = path.lastIndexOf(".");
-    const base = dot > 0 ? path.slice(0, dot) : path;
-    const extension = dot > 0 ? path.slice(dot) : "";
-    for (let counter = 2; counter < 10000; counter++) {
-      const candidate = `${base} ${counter}${extension}`;
-      if (!this.app.vault.getAbstractFileByPath(candidate)) return candidate;
+  private async ensurePhotosFolder(): Promise<string | null> {
+    if (this.app.vault.getAbstractFileByPath(this.photosFolder) instanceof TFolder) {
+      return this.photosFolder;
     }
-    return `${base} ${Date.now()}${extension}`;
+
+    if (!this.createFolderIfMissing) {
+      new Notice(`Photos folder not found: ${this.photosFolder}`);
+      return null;
+    }
+
+    try {
+      const parts = this.photosFolder.split("/").filter(Boolean);
+      let current = "";
+      for (const part of parts) {
+        current = current ? `${current}/${part}` : part;
+        const existing = this.app.vault.getAbstractFileByPath(current);
+        if (existing instanceof TFolder) continue;
+        if (existing) {
+          new Notice(`Cannot create Photos folder because ${current} is a file.`);
+          return null;
+        }
+        await this.app.vault.createFolder(current);
+      }
+
+      return this.app.vault.getAbstractFileByPath(this.photosFolder) instanceof TFolder
+        ? this.photosFolder
+        : null;
+    } catch (error) {
+      console.error("Camera Embed: failed to create gallery folder", error);
+      new Notice(`Failed to create Photos folder: ${this.photosFolder}`);
+      return null;
+    }
   }
 
-  private cancel() { this.onChoose([]); this.close(); }
-  onClose() { this.scanId++; this.contentEl.empty(); }
+  private cancel() {
+    this.onChoose([]);
+    this.close();
+  }
+
+  onClose() {
+    this.scanId++;
+    this.contentEl.empty();
+  }
 }
