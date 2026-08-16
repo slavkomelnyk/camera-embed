@@ -8,140 +8,114 @@ import {
 import { DEFAULT_SETTINGS, CameraEmbedSettings, CameraEmbedSettingTab } from "./settings.js";
 import { compressImage } from "./compressor.js";
 import { buildFileName, folderExists, getAvailablePath, joinPath } from "./file-utils.js";
-import { pickImageFromCamera } from "./input-utils.js";
-import {PickerModal} from "./picker-modal.js";
+import { pickImageFromCamera, pickImages } from "./input-utils.js";
+import { PickerModal } from "./picker-modal.js";
+import { GalleryModal } from "./gallery-modal.js";
 
 export default class CameraEmbedPlugin extends Plugin {
   settings: CameraEmbedSettings;
 
   async onload() {
-    // Load persisted settings before wiring UI.
     await this.loadSettings();
-
     this.addSettingTab(new CameraEmbedSettingTab(this.app, this));
 
-    this.addRibbonIcon("camera", "Capture photo", () => {
-      // void this.captureAndEmbed();
-      if (this.settings.imagePicker) {
-        new PickerModal(this.app, (result: "camera" | "gallery" | null) => {
-          if (result) void this.captureAndEmbed(result);
-        }).open();
-      } else {
-        void this.captureAndEmbed('camera')
-      }
-    });
+    this.addRibbonIcon("camera", "Capture photo", () => this.openPicker());
 
     this.addCommand({
       id: "capture-photo-embed",
       name: "Capture photo and embed",
       icon: "camera",
-      callback: () => {
-        if (this.settings.imagePicker) {
-          new PickerModal(this.app, (result: "camera" | "gallery" | null) => {
-            if (result) void this.captureAndEmbed(result);
-          }).open();
-        } else {
-          void this.captureAndEmbed('camera')
-        }
-      },
+      callback: () => this.openPicker(),
     });
   }
 
-private async captureAndEmbed(source: "camera" | "gallery") {
-    // Ensure there's an active markdown editor to insert the image.
+  private openPicker() {
+    if (this.settings.imagePicker) {
+      new PickerModal(this.app, (result: "camera" | "gallery" | null) => {
+        if (result) void this.captureAndEmbed(result);
+      }).open();
+    } else {
+      void this.captureAndEmbed("camera");
+    }
+  }
+
+  private async captureAndEmbed(source: "camera" | "gallery") {
     const view = this.app.workspace.getActiveViewOfType(MarkdownView);
-    if (!view) {
+    if (!view?.file) {
       new Notice("Please open a Markdown note to insert the photo.");
       return;
     }
 
-    const activeFile = view.file;
-    if (!activeFile) {
-      new Notice("No active note to insert the photo.");
+    const files = await pickImages(source);
+    if (files.length === 0) return;
+
+    if (source === "gallery" && files.length > 1) {
+      new GalleryModal(this.app, files, (selected) => {
+        if (selected.length > 0) void this.saveAndEmbed(selected, view);
+      }).open();
       return;
     }
 
-    // Open the device camera and let the user capture a photo.
-    const file = await pickImageFromCamera(source);
-    if (!file) return;
-
-    let finalFile: Blob | File = file;
-    if (this.settings.compressImages) {
-      finalFile = await compressImage(file, this.settings.compressQuality);
-    }
-
-    // Save the photo into the vault.
-    const arrayBuffer = await finalFile.arrayBuffer();
-    const filePath = activeFile.parent?.path; // e.g. "news" or "" (if note in root)
-
-    // Determine the target folder based on settings
-    const targetFolderPath = await this.ensureTargetFolder(filePath);
-    if (targetFolderPath === null) return; // error already shown
-
-    const fileName = buildFileName(file);
-    const targetPath = getAvailablePath(this.app.vault, joinPath(targetFolderPath, fileName));
-    const created = await this.app.vault.createBinary(targetPath, arrayBuffer);
-
-    // Insert a markdown embed for the saved image.
-    const link = this.app.fileManager.generateMarkdownLink(created, activeFile.path);
-    view.editor.replaceSelection(`!${link}`);
+    await this.saveAndEmbed(files, view);
   }
 
-  /**
-   * Determines the folder path where the photo should be saved,
-   * and creates it if missing (when `createFolderIfMissing` is true).
-   *
-   * @param noteFolderPath – the path of the folder containing the active note
-   *                        (maybe empty string if note is in vault root)
-   * @returns The normalized target folder path (empty string for vault root),
-   *          or `null` if the folder cannot be used/created.
-   */
+  private async saveAndEmbed(files: File[], view: MarkdownView) {
+    const activeFile = view.file;
+    if (!activeFile) return;
+
+    const filePath = activeFile.parent?.path;
+    const targetFolderPath = await this.ensureTargetFolder(filePath);
+    if (targetFolderPath === null) return;
+
+    const links: string[] = [];
+
+    for (const file of files) {
+      let finalFile: Blob | File = file;
+      if (this.settings.compressImages) {
+        finalFile = await compressImage(file, this.settings.compressQuality);
+      }
+
+      const arrayBuffer = await finalFile.arrayBuffer();
+      const fileName = buildFileName(file);
+      const targetPath = getAvailablePath(this.app.vault, joinPath(targetFolderPath, fileName));
+      const created = await this.app.vault.createBinary(targetPath, arrayBuffer);
+      const link = this.app.fileManager.generateMarkdownLink(created, activeFile.path);
+      links.push(`!${link}`);
+    }
+
+    view.editor.replaceSelection(links.join("\n"));
+  }
+
   private async ensureTargetFolder(noteFolderPath: string | undefined): Promise<string | null> {
     const rawPhotosFolder = this.settings.photosFolder.trim();
     const saveNear = this.settings.saveNearTheNote;
 
-    // --- Case A: Save near the note ---
     if (saveNear) {
-      // noteFolderPath is guaranteed to exist because the note exists
       const baseFolder = noteFolderPath ?? "";
+      if (rawPhotosFolder === "") return baseFolder;
 
-      if (rawPhotosFolder === "") {
-        // Save directly in the note's folder
-        return baseFolder; // may be "" (vault root)
-      } else {
-        // Save in note's folder + photosFolder
-        const target = baseFolder ? `${baseFolder}/${rawPhotosFolder}` : rawPhotosFolder;
-        const normalized = normalizePath(target);
+      const target = baseFolder ? `${baseFolder}/${rawPhotosFolder}` : rawPhotosFolder;
+      const normalized = normalizePath(target);
+      if (folderExists(this.app.vault, normalized)) return normalized;
+      if (!this.settings.createFolderIfMissing) {
+        new Notice(`Folder not found: ${normalized}`);
+        return null;
+      }
 
-        // If the folder already exists, return it
-        if (folderExists(this.app.vault, normalized)) return normalized;
-
-        // Otherwise, create it if allowed
-        if (!this.settings.createFolderIfMissing) {
-          new Notice(`Folder not found: ${normalized}`);
-          return null;
-        }
-
-        try {
-          await this.app.vault.createFolder(normalized);
-          return normalized;
-        } catch (error) {
-          new Notice(`Failed to create folder: ${normalized}`);
-          console.error(error);
-          return null;
-        }
+      try {
+        await this.app.vault.createFolder(normalized);
+        return normalized;
+      } catch (error) {
+        new Notice(`Failed to create folder: ${normalized}`);
+        console.error(error);
+        return null;
       }
     }
 
-    // --- Case B: Global photos folder (not near the note) ---
-    if (rawPhotosFolder === "") {
-      // Save in vault root
-      return "";
-    }
+    if (rawPhotosFolder === "") return "";
 
     const normalized = normalizePath(rawPhotosFolder);
     if (folderExists(this.app.vault, normalized)) return normalized;
-
     if (!this.settings.createFolderIfMissing) {
       new Notice(`Folder not found: ${normalized}`);
       return null;
