@@ -27,6 +27,10 @@ export class CameraEmbedSettingTab extends PluginSettingTab {
     this.plugin = plugin;
   }
 
+  display(): void {
+    // Settings are rendered by Obsidian's declarative settings API.
+  }
+
   getSettingDefinitions() {
     return [
       {
