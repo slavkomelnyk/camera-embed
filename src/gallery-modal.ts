@@ -138,14 +138,23 @@ export class GalleryModal extends Modal {
       const files = input.files ? Array.from(input.files) : [];
       input.remove();
       if (files.length === 0) return;
+
+      const folder = this.getGalleryFolder();
+      if (!folder) {
+        new Notice("Set a Photos folder in Camera Embed settings before uploading to the gallery.");
+        return;
+      }
+
       this.status.setText(`Uploading ${files.length.toLocaleString()} photo${files.length === 1 ? "" : "s"}…`);
-      const folder = ".camera-gallery";
       try {
-        if (!this.app.vault.getAbstractFileByPath(folder)) await this.app.vault.createFolder(folder);
+        await this.ensureFolder(folder);
         for (const file of files) {
-          await this.app.vault.createBinary(this.getUniquePath(`${folder}/${file.name}`), await file.arrayBuffer());
+          await this.app.vault.createBinary(
+            this.getUniquePath(`${folder}/${file.name}`),
+            await file.arrayBuffer(),
+          );
         }
-        new Notice(`${files.length.toLocaleString()} photo${files.length === 1 ? "" : "s"} added to gallery.`);
+        new Notice(`${files.length.toLocaleString()} photo${files.length === 1 ? "" : "s"} added to ${folder}.`);
         await this.scanVault();
       } catch (error) {
         console.error("Camera Embed: gallery upload failed", error);
@@ -153,8 +162,24 @@ export class GalleryModal extends Modal {
         await this.scanVault();
       }
     });
+
     document.body.appendChild(input);
     input.click();
+  }
+
+  private getGalleryFolder(): string | null {
+    const folder = this.pluginSettingsFolder();
+    return folder || null;
+  }
+
+  private pluginSettingsFolder(): string {
+    // GalleryModal does not own settings; the host attaches the configured folder.
+    return (this.app as App & { cameraEmbedPhotosFolder?: string }).cameraEmbedPhotosFolder?.trim() ?? "";
+  }
+
+  private async ensureFolder(folder: string) {
+    if (this.app.vault.getAbstractFileByPath(folder)) return;
+    await this.app.vault.createFolder(folder);
   }
 
   private getUniquePath(path: string): string {
