@@ -13,9 +13,11 @@ export default class CameraEmbedPlugin extends Plugin {
     this.normalizeGallerySettings();
     await this.saveSettings();
     this.addSettingTab(new CameraEmbedSettingTab(this.app, this));
-    this.addRibbonIcon("camera", "Capture photo", () => void this.capturePhoto());
-    this.addCommand({ id: "capture-photo-embed", name: "Capture photo and embed", icon: "camera", callback: () => void this.capturePhoto() });
-    this.addCommand({ id: "open-gallery", name: "Open camera gallery", icon: "images", callback: () => this.openGallery() });
+
+    const iconc = this.settings.galleryEnabled ? "images" : "camera";
+
+    this.addRibbonIcon(iconc, "Capture photo", () => void this.capturePhoto());
+    this.addCommand({ id: "capture-photo-embed", name: "Capture photo and embed", icon: iconc, callback: () => void this.capturePhoto() });
   }
 
   private normalizeGallerySettings() {
@@ -35,7 +37,7 @@ export default class CameraEmbedPlugin extends Plugin {
     }
     const folder = this.settings.photosFolder.trim();
     if (!folder) {
-      new Notice("Set a Photos folder in Camera Embed settings before using the gallery.");
+      new Notice("Set a photos folder in camera embed settings before using the gallery.");
       return;
     }
     new GalleryModal(this.app, folder, this.settings.createFolderIfMissing, (files) => {

@@ -47,7 +47,7 @@ export class GalleryModal extends Modal {
     const footer = contentEl.createDiv({ cls: "camera-gallery-footer" });
     this.deleteButton = footer.createEl("button", { text: "Delete", cls: "camera-gallery-delete" });
     this.deleteButton.addEventListener("click", () => void this.deleteSelected());
-    this.useButton = footer.createEl("button", { text: "Use It", cls: "mod-cta" });
+    this.useButton = footer.createEl("button", { text: "Use it", cls: "mod-cta" });
     this.useButton.addEventListener("click", () => this.useSelected());
     this.setActionButtonsVisible(false);
     void this.scanVault();
@@ -201,7 +201,7 @@ export class GalleryModal extends Modal {
   }
 
   private async uploadToGallery() {
-    if (!this.photosFolder) { new Notice("Set a Photos folder in Camera Embed settings before uploading to the gallery."); return; }
+    if (!this.photosFolder) { new Notice("Set a photos folder in camera embed settings before uploading to the gallery."); return; }
     const input = document.body.createEl("input", { cls: "camera-hidden", type: "file" });
     input.accept = "image/*";
     input.multiple = true;
@@ -226,7 +226,7 @@ export class GalleryModal extends Modal {
   }
 
   private async saveToGallery(file: File): Promise<TFile | null> {
-    if (!this.photosFolder) { new Notice("Set a Photos folder in Camera Embed settings first."); return null; }
+    if (!this.photosFolder) { new Notice("Set a photos folder in camera embed settings first."); return null; }
     try {
       if (!this.app.vault.getAbstractFileByPath(this.photosFolder)) {
         if (!this.createFolderIfMissing) { new Notice(`Photos folder not found: ${this.photosFolder}`); return null; }

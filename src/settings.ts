@@ -11,7 +11,7 @@ export interface CameraEmbedSettings {
 }
 
 export const DEFAULT_SETTINGS: CameraEmbedSettings = {
-  photosFolder: "",
+  photosFolder: "photos",
   createFolderIfMissing: true,
   saveNearTheNote: false,
   compressImages: false,
