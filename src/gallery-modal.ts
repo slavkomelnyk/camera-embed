@@ -1,4 +1,5 @@
 import { App, Modal, Notice, TFile, setIcon } from "obsidian";
+import { createFolderPath, getMonthlyFolder } from "./file-utils.js";
 
 const IMAGE_EXTENSIONS = new Set(["jpg", "jpeg", "png", "gif", "webp", "bmp", "svg", "avif"]);
 
@@ -6,6 +7,8 @@ export class GalleryModal extends Modal {
   private readonly onChoose: (files: TFile[]) => void;
   private readonly photosFolder: string;
   private readonly createFolderIfMissing: boolean;
+  private readonly organizePhotosByMonth: boolean;
+  private readonly closeOnChoose: boolean;
   private items: TFile[] = [];
   private selected = new Set<string>();
   private grid!: HTMLElement;
@@ -13,15 +16,25 @@ export class GalleryModal extends Modal {
   private status!: HTMLElement;
   private useButton!: HTMLButtonElement;
   private deleteButton!: HTMLButtonElement;
+  private previewButton!: HTMLButtonElement;
   private scanId = 0;
   private opened = false;
 
-  constructor(app: App, photosFolder: string, createFolderIfMissing: boolean, onChoose: (files: TFile[]) => void) {
+  constructor(app: App, photosFolder: string, createFolderIfMissing: boolean, organizePhotosByMonth: boolean, onChoose: (files: TFile[]) => void, closeOnChoose = true) {
     super(app);
     this.photosFolder = photosFolder.trim();
     this.createFolderIfMissing = createFolderIfMissing;
+    this.organizePhotosByMonth = organizePhotosByMonth;
     this.onChoose = onChoose;
+    this.closeOnChoose = closeOnChoose;
   }
+
+  mount(container: HTMLElement) {
+    this.onOpen();
+    container.appendChild(this.contentEl);
+  }
+
+  unmount() { this.onClose(); }
 
   onOpen() {
     this.opened = true;
@@ -47,6 +60,8 @@ export class GalleryModal extends Modal {
     const footer = contentEl.createDiv({ cls: "camera-gallery-footer" });
     this.deleteButton = footer.createEl("button", { text: "Delete", cls: "camera-gallery-delete" });
     this.deleteButton.addEventListener("click", () => void this.deleteSelected());
+    this.previewButton = footer.createEl("button", { text: "Preview", cls: "camera-gallery-preview" });
+    this.previewButton.addEventListener("click", () => this.previewSelected());
     this.useButton = footer.createEl("button", { text: "Use it", cls: "mod-cta" });
     this.useButton.addEventListener("click", () => this.useSelected());
     this.setActionButtonsVisible(false);
@@ -133,6 +148,7 @@ export class GalleryModal extends Modal {
   private setActionButtonsVisible(visible: boolean) {
     this.useButton.toggleVisibility(visible);
     this.deleteButton.toggleVisibility(visible);
+    this.previewButton.toggleVisibility(this.selected.size === 1);
   }
 
   private updateSelection() {
@@ -149,12 +165,16 @@ export class GalleryModal extends Modal {
     }
     if (!files.length) return;
     this.onChoose(files);
-    this.close();
+    if (this.closeOnChoose) this.close();
   }
 
   private async deleteSelected() {
     const paths = Array.from(this.selected);
     if (!paths.length) return;
+    await this.deleteFiles(paths);
+  }
+
+  private async deleteFiles(paths: string[]) {
     const confirmed = await this.confirmDelete(paths.length);
     if (!confirmed) return;
     let deleted = 0;
@@ -171,6 +191,14 @@ export class GalleryModal extends Modal {
     this.selected.clear();
     if (deleted > 0) new Notice(`Deleted ${deleted} photo${deleted === 1 ? "" : "s"}.`);
     await this.scanVault();
+  }
+
+  private previewSelected() {
+    const [path] = Array.from(this.selected);
+    if (!path) return;
+    const file = this.app.vault.getAbstractFileByPath(path);
+    if (!(file instanceof TFile)) return;
+    new PhotoPreviewModal(this.app, file, () => void this.deleteFiles([file.path])).open();
   }
 
   private confirmDelete(count: number): Promise<boolean> {
@@ -214,7 +242,7 @@ export class GalleryModal extends Modal {
     input.remove();
     if (!files.length || !this.opened) return;
     const savedFiles: TFile[] = [];
-    for (const file of files) { const saved = await this.saveToGallery(file); if (saved) savedFiles.push(saved); }
+    for (const file of files) { const saved = await this.saveToGallery(file, single); if (saved) savedFiles.push(saved); }
     if (!this.opened) return;
     for (const saved of savedFiles) this.addSavedFile(saved);
     if (savedFiles.length) void this.refreshInBackground();
@@ -225,14 +253,15 @@ export class GalleryModal extends Modal {
     if (this.opened) await this.scanVault();
   }
 
-  private async saveToGallery(file: File): Promise<TFile | null> {
+  private async saveToGallery(file: File, isCameraCapture: boolean): Promise<TFile | null> {
     if (!this.photosFolder) { new Notice("Set a photos folder in camera embed settings first."); return null; }
     try {
-      if (!this.app.vault.getAbstractFileByPath(this.photosFolder)) {
-        if (!this.createFolderIfMissing) { new Notice(`Photos folder not found: ${this.photosFolder}`); return null; }
-        await this.app.vault.createFolder(this.photosFolder);
+      const folder = this.organizePhotosByMonth && isCameraCapture ? getMonthlyFolder(this.photosFolder) : this.photosFolder;
+      if (!this.app.vault.getAbstractFileByPath(folder)) {
+        if (!this.createFolderIfMissing) { new Notice(`Photos folder not found: ${folder}`); return null; }
+        await createFolderPath(this.app.vault, folder);
       }
-      const path = this.getUniquePath(`${this.photosFolder}/${file.name}`);
+      const path = this.getUniquePath(`${folder}/${file.name}`);
       const created = await this.app.vault.createBinary(path, await file.arrayBuffer());
       new Notice(`Added ${file.name} to gallery.`);
       return created;
@@ -256,4 +285,48 @@ export class GalleryModal extends Modal {
   }
 
   onClose() { this.opened = false; this.scanId++; this.contentEl.empty(); }
+}
+
+class PhotoPreviewModal extends Modal {
+  private readonly file: TFile;
+  private readonly onDelete: () => void;
+
+  constructor(app: App, file: TFile, onDelete: () => void) {
+    super(app);
+    this.file = file;
+    this.onDelete = onDelete;
+  }
+
+  onOpen() {
+    this.modalEl.addClass("camera-photo-preview-modal-container");
+    this.titleEl.setText(this.file.name);
+    const { contentEl } = this;
+    contentEl.addClass("camera-photo-preview-modal");
+    const image = contentEl.createEl("img", { cls: "camera-photo-preview-image" });
+    image.src = this.app.vault.getResourcePath(this.file);
+    image.alt = this.file.name;
+
+    const usages = this.getUsages();
+    contentEl.createEl("h3", { text: `Used in ${usages.length} note${usages.length === 1 ? "" : "s"}` });
+    const usageList = contentEl.createDiv({ cls: "camera-photo-preview-usages" });
+    if (usages.length === 0) usageList.setText("This photo is not linked from any note.");
+    for (const usage of usages) {
+      const button = usageList.createEl("button", { text: usage.path, cls: "camera-photo-preview-usage" });
+      button.addEventListener("click", () => void this.app.workspace.openLinkText(usage.path, "", false));
+    }
+
+    const actions = contentEl.createDiv({ cls: "modal-button-container" });
+    actions.createEl("button", { text: "Close" }).addEventListener("click", () => this.close());
+    actions.createEl("button", { text: "Delete", cls: "mod-warning" }).addEventListener("click", () => {
+      this.close();
+      this.onDelete();
+    });
+  }
+
+  private getUsages(): TFile[] {
+    return Object.entries(this.app.metadataCache.resolvedLinks)
+      .filter(([, targets]) => (targets[this.file.path] ?? 0) > 0)
+      .map(([path]) => this.app.vault.getAbstractFileByPath(path))
+      .filter((file): file is TFile => file instanceof TFile);
+  }
 }

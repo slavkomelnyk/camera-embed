@@ -1,9 +1,10 @@
-import { MarkdownView, Notice, Plugin, TFile, normalizePath } from "obsidian";
+import { MarkdownView, Notice, Platform, Plugin, TFile, normalizePath } from "obsidian";
 import { DEFAULT_SETTINGS, CameraEmbedSettings, CameraEmbedSettingTab } from "./settings.js";
 import { compressImage } from "./compressor.js";
-import { buildFileName, folderExists, getAvailablePath, joinPath } from "./file-utils.js";
+import { buildFileName, createFolderPath, folderExists, getAvailablePath, getMonthlyFolder, joinPath } from "./file-utils.js";
 import { pickImages } from "./input-utils.js";
 import { GalleryModal } from "./gallery-modal.js";
+import { CameraGalleryView, GALLERY_VIEW_TYPE } from "./gallery-view.js";
 
 export default class CameraEmbedPlugin extends Plugin {
   settings: CameraEmbedSettings = DEFAULT_SETTINGS;
@@ -18,6 +19,10 @@ export default class CameraEmbedPlugin extends Plugin {
 
     this.addRibbonIcon(iconc, "Capture photo", () => void this.capturePhoto());
     this.addCommand({ id: "capture-photo-embed", name: "Capture photo and embed", icon: iconc, callback: () => void this.capturePhoto() });
+    if (Platform.isDesktop) {
+      this.registerView(GALLERY_VIEW_TYPE, (leaf) => new CameraGalleryView(leaf, this));
+      this.addCommand({ id: "open-camera-gallery-sidebar", name: "Open camera gallery in sidebar", icon: "images", callback: () => void this.openGallerySidebar() });
+    }
   }
 
   private normalizeGallerySettings() {
@@ -25,7 +30,8 @@ export default class CameraEmbedPlugin extends Plugin {
   }
 
   private capturePhoto() {
-    if (this.settings.galleryEnabled) this.openGallery();
+    if (this.settings.galleryEnabled && this.settings.openGalleryInSidebar && Platform.isDesktop) void this.openGallerySidebar();
+    else if (this.settings.galleryEnabled) this.openGallery();
     else void this.captureDirectly();
   }
 
@@ -40,7 +46,7 @@ export default class CameraEmbedPlugin extends Plugin {
       new Notice("Set a photos folder in camera embed settings before using the gallery.");
       return;
     }
-    new GalleryModal(this.app, folder, this.settings.createFolderIfMissing, (files) => {
+    new GalleryModal(this.app, folder, this.settings.createFolderIfMissing, this.settings.organizePhotosByMonth, (files) => {
       if (files.length > 0) void this.embedVaultFiles(files, view);
     }).open();
   }
@@ -60,6 +66,20 @@ export default class CameraEmbedPlugin extends Plugin {
     if (!activeFile) return;
     const links = files.map((file) => `!${this.app.fileManager.generateMarkdownLink(file, activeFile.path)}`);
     view.editor.replaceSelection(links.join("\n"));
+  }
+
+  embedGalleryFiles(files: TFile[]) {
+    const leaf = this.app.workspace.getMostRecentLeaf();
+    if (!(leaf?.view instanceof MarkdownView)) {
+      new Notice("Open a Markdown note to insert the selected photos.");
+      return;
+    }
+    void this.embedVaultFiles(files, leaf.view);
+  }
+
+  private async openGallerySidebar() {
+    const leaf = await this.app.workspace.ensureSideLeaf(GALLERY_VIEW_TYPE, "right", { active: true, reveal: true });
+    await this.app.workspace.revealLeaf(leaf);
   }
 
   private async saveAndEmbed(files: File[], view: MarkdownView) {
@@ -83,7 +103,7 @@ export default class CameraEmbedPlugin extends Plugin {
     const target = this.settings.saveNearTheNote
       ? (raw ? (noteFolderPath ? `${noteFolderPath}/${raw}` : raw) : (noteFolderPath ?? ""))
       : raw;
-    const normalized = normalizePath(target);
+    const normalized = normalizePath(this.settings.organizePhotosByMonth ? getMonthlyFolder(target) : target);
     if (normalized === "") return "";
     if (folderExists(this.app.vault, normalized)) return normalized;
     if (!this.settings.createFolderIfMissing) {
@@ -91,7 +111,7 @@ export default class CameraEmbedPlugin extends Plugin {
       return null;
     }
     try {
-      await this.app.vault.createFolder(normalized);
+      await createFolderPath(this.app.vault, normalized);
       return normalized;
     } catch (error) {
       console.error("Camera Embed: failed to create folder", error);
@@ -105,4 +125,5 @@ export default class CameraEmbedPlugin extends Plugin {
   }
 
   async saveSettings() { await this.saveData(this.settings); }
+
 }

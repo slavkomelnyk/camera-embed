@@ -1,4 +1,8 @@
 .camera-hidden { display: none; }
+.camera-settings-tabs { display: flex; flex-wrap: wrap; gap: var(--size-4-2); margin: var(--size-4-4) 0; border-bottom: 1px solid var(--background-modifier-border); }
+.camera-settings-tab { margin-bottom: -1px; padding: var(--size-4-2) var(--size-4-3); border: 0; border-bottom: 2px solid transparent; border-radius: 0; background: transparent; color: var(--text-muted); }
+.camera-settings-tab:hover { background: var(--background-modifier-hover); color: var(--text-normal); }
+.camera-settings-tab.is-active { border-bottom-color: var(--interactive-accent); color: var(--text-normal); font-weight: 600; }
 
 .modal.camera-gallery-modal-container { width: min(1100px, 94vw); max-width: 94vw; height: min(760px, 86vh); max-height: 86vh; }
 .modal.camera-gallery-modal-container .modal-content { min-height: 0; height: 100%; max-height: none; overflow: hidden; display: flex; flex-direction: column; }
@@ -17,6 +21,14 @@
 .camera-gallery-badge { position: absolute; top: 7px; right: 7px; min-width: 24px; height: 24px; padding: 0 5px; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: var(--interactive-accent); color: var(--text-on-accent); font-size: 12px; font-weight: 700; box-shadow: 0 1px 4px rgba(0,0,0,.25); }
 .camera-gallery-name { position: absolute; left: 0; right: 0; bottom: 0; padding: 20px 6px 6px; color: white; background: linear-gradient(transparent, rgba(0,0,0,.75)); font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; pointer-events: none; }
 .camera-gallery-footer { flex: 0 0 auto; display: flex; align-items: center; justify-content: space-between; gap: var(--size-4-2); padding-top: var(--size-4-2); border-top: 1px solid var(--background-modifier-border); }
+.camera-gallery-view { height: 100%; padding: var(--size-4-2); }
+.camera-gallery-view > .camera-gallery-modal { height: 100%; }
+.modal.camera-photo-preview-modal-container { width: min(760px, 94vw); max-width: 94vw; }
+.camera-photo-preview-modal { display: flex; flex-direction: column; gap: var(--size-4-2); }
+.camera-photo-preview-image { display: block; width: 100%; max-height: min(55vh, 520px); object-fit: contain; border-radius: var(--radius-s); background: var(--background-secondary); }
+.camera-photo-preview-modal h3 { margin: var(--size-4-1) 0 0; font-size: var(--font-ui-medium); }
+.camera-photo-preview-usages { display: flex; flex-direction: column; gap: 4px; max-height: 180px; overflow-y: auto; color: var(--text-muted); }
+.camera-photo-preview-usage { overflow: hidden; text-align: left; text-overflow: ellipsis; white-space: nowrap; }
 
 @media (max-width: 800px) { .modal.camera-gallery-modal-container { width: 94vw; max-width: 94vw; height: 86vh; max-height: 86vh; } .camera-gallery-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
-@media (max-width: 600px) { .modal.camera-gallery-modal-container { width: 96vw; max-width: 96vw; height: 88vh; max-height: 88vh; } .camera-gallery-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4px; } .camera-gallery-name { display: none; } .camera-gallery-toolbar { justify-content: stretch; } .camera-gallery-toolbar button { flex: 1 1 0; justify-content: center; } }
+@media (max-width: 600px) { .modal.camera-gallery-modal-container { width: 96vw; max-width: 96vw; height: 88vh; max-height: 88vh; } .modal.camera-photo-preview-modal-container { width: 96vw; max-width: 96vw; } .camera-gallery-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4px; } .camera-gallery-name { display: none; } .camera-gallery-toolbar { justify-content: stretch; } .camera-gallery-toolbar button { flex: 1 1 0; justify-content: center; } }

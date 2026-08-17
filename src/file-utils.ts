@@ -25,6 +25,23 @@ export function joinPath(parentPath: string | null, fileName: string): string {
   return `${parentPath}/${fileName}`;
 }
 
+export function getMonthlyFolder(parentPath: string, date = new Date()): string {
+  const year = String(date.getFullYear());
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  return joinPath(joinPath(parentPath, year), month);
+}
+
+export async function createFolderPath(vault: Vault, path: string): Promise<void> {
+  let currentPath = "";
+  for (const segment of path.split("/").filter(Boolean)) {
+    currentPath = joinPath(currentPath, segment);
+    const existing = vault.getAbstractFileByPath(currentPath);
+    if (existing instanceof TFolder) continue;
+    if (existing) throw new Error(`Cannot create folder because a file exists at ${currentPath}`);
+    await vault.createFolder(currentPath);
+  }
+}
+
 export function getAvailablePath(vault: Vault, path: string): string {
   // Avoid overwriting existing files by adding a suffix.
   if (!vault.getAbstractFileByPath(path)) return path;
