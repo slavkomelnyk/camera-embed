@@ -51,12 +51,19 @@ export class CameraEmbedSettingTab extends PluginSettingTab {
     else this.displayCompression(content);
   }
 
+  getSettingDefinitions() { return []; }
+
+  private refresh() {
+    const settingsTab = this as unknown as { update: () => void };
+    settingsTab.update();
+  }
+
   private addTab(container: HTMLElement, section: SettingsSection, label: string) {
     const tab = container.createEl("button", { text: label, cls: "camera-settings-tab" });
     tab.toggleClass("is-active", this.activeSection === section);
     tab.addEventListener("click", () => {
       this.activeSection = section;
-      this.display();
+      this.refresh();
     });
   }
 
@@ -67,7 +74,7 @@ export class CameraEmbedSettingTab extends PluginSettingTab {
         this.plugin.settings.galleryEnabled = value;
         if (value) this.plugin.settings.saveNearTheNote = false;
         await this.plugin.saveSettings();
-        this.display();
+        this.refresh();
       }));
 
     new Setting(container).setName("Open gallery in sidebar")

@@ -25,9 +25,9 @@ export function joinPath(parentPath: string | null, fileName: string): string {
   return `${parentPath}/${fileName}`;
 }
 
-export function getMonthlyFolder(parentPath: string, date = new Date()): string {
-  const year = String(date.getFullYear());
-  const month = String(date.getMonth() + 1).padStart(2, "0");
+export function getMonthlyFolder(parentPath: string, date: Date = new Date()): string {
+  const year = date.getFullYear().toString();
+  const month = (date.getMonth() + 1).toString().padStart(2, "0");
   return joinPath(joinPath(parentPath, year), month);
 }
 
