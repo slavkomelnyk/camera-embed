@@ -1,4 +1,4 @@
-import {App, PluginSettingTab, Setting} from "obsidian";
+import {App, Platform, PluginSettingTab} from "obsidian";
 import CameraEmbedPlugin from "./main.js";
 
 export interface CameraEmbedSettings {
@@ -7,18 +7,21 @@ export interface CameraEmbedSettings {
   saveNearTheNote: boolean;
   compressImages: boolean;
   compressQuality: number;
-  imagePicker: boolean;
+  galleryEnabled: boolean;
+  openGalleryInSidebar: boolean;
+  organizePhotosByMonth: boolean;
 }
 
 export const DEFAULT_SETTINGS: CameraEmbedSettings = {
-  photosFolder: "",
+  photosFolder: "photos",
   createFolderIfMissing: true,
   saveNearTheNote: false,
   compressImages: false,
   compressQuality: 0.8,
-  imagePicker: false,
+  galleryEnabled: false,
+  openGalleryInSidebar: false,
+  organizePhotosByMonth: false,
 };
-
 
 export class CameraEmbedSettingTab extends PluginSettingTab {
   plugin: CameraEmbedPlugin;
@@ -28,94 +31,103 @@ export class CameraEmbedSettingTab extends PluginSettingTab {
     this.plugin = plugin;
   }
 
-  display(): void {
-    const { containerEl } = this;
-    containerEl.empty();
-    new Setting(containerEl)
-    .setName("Platform support")
-    .setDesc(
-      "This plugin is primarily designed for Android. Some features may be limited or unavailable on iOS and desktop."
-    );
-    new Setting(containerEl).setName("Save images").setHeading();
-    new Setting(containerEl)
-      .setName("Photos folder")
-      .setDesc(
-        "Optional, use a vault-relative path like attachments/camera, leave blank to store next to the note."
-      )
-      .addText((text) =>
-        text
-          .setValue(this.plugin.settings.photosFolder)
-          .onChange(async (value) => {
-            this.plugin.settings.photosFolder = value;
-            await this.plugin.saveSettings();
-          })
-      );
+  getSettingDefinitions() {
+    return [
+      {
+        name: "This plugin is primarily designed for Android. Some features may be limited on other platforms.",
+      },
 
-    new Setting(containerEl)
-      .setName("Create folder if missing")
-      .setDesc("Automatically create the photos folder if it does not exist.")
-      .addToggle((toggle) =>
-        toggle
-          .setValue(this.plugin.settings.createFolderIfMissing)
-          .onChange(async (value) => {
-            this.plugin.settings.createFolderIfMissing = value;
-            await this.plugin.saveSettings();
-          })
-      );
+      {
+        type: "group" as const,
+        heading: "Gallery",
+        items: [
+          {
+            name: "Enable gallery",
+            desc: "Use the gallery instead of taking a photo directly.",
+            control: {
+              type: "toggle" as const,
+              key: "galleryEnabled",
+            },
+          },
+          {
+            name: "Open gallery in sidebar",
+            desc: "Open the gallery in the right sidebar when using the camera button.",
+            visible: () => this.plugin.settings.galleryEnabled && !Platform.isMobile,
+            control: {
+              type: "toggle" as const,
+              key: "openGalleryInSidebar",
+            },
+          },
+        ],
+      },
 
-    new Setting(containerEl)
-      .setName("Save near the note")
-      .setDesc(
-        "When enabled, photos will be saved in the same folder as the note, or inside a photos folder within that same directory."
-      )
-      .addToggle((toggle) =>
-        toggle
-          .setValue(this.plugin.settings.saveNearTheNote)
-          .onChange(async (value) => {
-            this.plugin.settings.saveNearTheNote = value;
-            await this.plugin.saveSettings();
-          })
-      );
+      {
+        type: "group" as const,
+        heading: "Photo storage",
+        items: [
+          {
+            name: "Photos folder",
+            desc: "Folder used to store photos.",
+            control: {
+              type: "text" as const,
+              key: "photosFolder",
+              placeholder: "photos",
+            },
+          },
+          {
+            name: "Organize photos by month",
+            desc: "Save photos in year and month folders.",
+            control: {
+              type: "toggle" as const,
+              key: "organizePhotosByMonth",
+            },
+          },
+          {
+            name: "Create folder if missing",
+            desc: "Create the photos folder automatically when needed.",
+            control: {
+              type: "toggle" as const,
+              key: "createFolderIfMissing",
+            },
+          },
+          {
+            name: "Save near the note",
+            desc: "Save camera photos beside the current note.",
+            visible: () => !this.plugin.settings.galleryEnabled,
+            control: {
+              type: "toggle" as const,
+              key: "saveNearTheNote",
+            },
+          },
+        ],
+      },
 
-    new Setting(containerEl).setName("Compress images").setHeading();
-
-    new Setting(containerEl)
-      .setName("Compress images")
-      .setDesc("Reduce photo file sizes by compressing them before saving.")
-      .addToggle((toggle) =>
-        toggle
-          .setValue(this.plugin.settings.compressImages)
-          .onChange(async (value) => {
-            this.plugin.settings.compressImages = value;
-            await this.plugin.saveSettings();
-          })
-      );
-
-    new Setting(containerEl)
-      .setName("Compress quality")
-      .setDesc("Adjust the quality of compressed images. Lower values result in smaller files but worse quality.")
-      .addSlider(slider =>
-        slider
-          .setLimits(0, 0.9, 0.05)
-          .setValue(this.plugin.settings.compressQuality)
-          .onChange(async (value) => {
-            this.plugin.settings.compressQuality = value;
-            await this.plugin.saveSettings();
-          })
-      )
-
-    new Setting(containerEl).setName("Picker (optional)").setHeading();
-
-    new Setting(containerEl)
-      .setName("Image picker (optional)")
-      .setDesc("Show a prompt to choose between taking a new photo or picking an existing one from the gallery. This option is only relevant for Android, which supports both features. Do nothing on iOS/desktop.")
-      .addToggle((toggle) =>
-        toggle
-          .setValue(this.plugin.settings.imagePicker)
-          .onChange(async (value) => {
-            this.plugin.settings.imagePicker = value;
-            await this.plugin.saveSettings();
-          })
-      );
+      {
+        type: "group" as const,
+        heading: "Image compression",
+        items: [
+          {
+            name: "Compress images",
+            desc: "Reduce photo file sizes before saving.",
+            control: {
+              type: "toggle" as const,
+              key: "compressImages",
+            },
+          },
+          {
+            name: "Compression quality",
+            desc: "Lower values create smaller files with lower image quality.",
+            visible: () => this.plugin.settings.compressImages,
+            control: {
+              type: "slider" as const,
+              key: "compressQuality",
+              min: 0,
+              max: 0.9,
+              step: 0.05,
+            },
+          },
+        ],
+      },
+    ];
   }
 }

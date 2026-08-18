@@ -1,31 +1,31 @@
-export async function pickImageFromCamera(source: string = 'gallery'): Promise<File | null> {
-    return new Promise((resolve) => {
-      // Mobile browsers use the capture attribute to open the camera.
-      const input = document.createElement("input");
-      input.type = "file";
-      input.accept = "image/*";
-      if (source === "camera") {
-        input.capture = "environment";
-      }
-      input.addClass("camera-hidden");
+export async function pickImageFromCamera(source: string = "gallery"): Promise<File | null> {
+  const files = await pickImages(source);
+  return files[0] ?? null;
+}
 
-      const timeoutId = setTimeout(() => {
-        input.remove();
-        resolve(null);
-      }, 60_000);
+export function pickImages(source: string = "gallery"): Promise<File[]> {
+  return new Promise((resolve) => {
+    const input = document.body.createEl("input", { cls: "camera-hidden", type: "file" });
+    input.accept = "image/*";
+    input.multiple = source !== "camera";
+    if (source === "camera") input.setAttribute("capture", "environment");
 
-      const cleanup = (file: File | null) => {
-        clearTimeout(timeoutId);
-        input.remove();
-        resolve(file);
-      };
+    const timeoutId = window.setTimeout(() => {
+      input.remove();
+      resolve([]);
+    }, 60_000);
 
-      input.addEventListener("change", () => {
-        const file = input.files && input.files.length > 0 ? input.files[0] : null;
-        cleanup(file as File | null);
-      });
+    const cleanup = (files: File[]) => {
+      window.clearTimeout(timeoutId);
+      input.remove();
+      resolve(files);
+    };
 
-      document.body.appendChild(input);
-      input.click();
+    input.addEventListener("change", () => {
+      const files = input.files;
+      cleanup(files ? Array.from(files) : []);
     });
-  }
+
+    input.click();
+  });
+}
