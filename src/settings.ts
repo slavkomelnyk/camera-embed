@@ -34,7 +34,7 @@ export class CameraEmbedSettingTab extends PluginSettingTab {
     this.plugin = plugin;
   }
 
-  display(): void {
+  display = (): void => {
     const { containerEl } = this;
     containerEl.empty();
     containerEl.addClass("camera-settings");
@@ -49,7 +49,7 @@ export class CameraEmbedSettingTab extends PluginSettingTab {
     if (this.activeSection === "gallery") this.displayGallery(content);
     else if (this.activeSection === "storage") this.displayStorage(content);
     else this.displayCompression(content);
-  }
+  };
 
   getSettingDefinitions() { return []; }
 

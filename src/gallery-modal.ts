@@ -324,9 +324,11 @@ class PhotoPreviewModal extends Modal {
   }
 
   private getUsages(): TFile[] {
-    const resolvedLinks = this.app.metadataCache.resolvedLinks as unknown as Record<string, Record<string, number>>;
+    const resolvedLinks = this.app.metadataCache.resolvedLinks;
     const usages: TFile[] = [];
-    for (const [path, targets] of Object.entries(resolvedLinks)) {
+    for (const path in resolvedLinks) {
+      const targets = resolvedLinks[path];
+      if (!targets) continue;
       if ((targets[this.file.path] ?? 0) <= 0) continue;
       const file: unknown = this.app.vault.getAbstractFileByPath(path);
       if (file instanceof TFile) usages.push(file);
