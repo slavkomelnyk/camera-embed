@@ -1,4 +1,4 @@
-import { App, Platform, PluginSettingTab, Setting } from "obsidian";
+import { App, PluginSettingTab } from "obsidian";
 import CameraEmbedPlugin from "./main.js";
 
 export interface CameraEmbedSettings {
@@ -23,104 +23,111 @@ export const DEFAULT_SETTINGS: CameraEmbedSettings = {
   organizePhotosByMonth: false,
 };
 
-type SettingsSection = "gallery" | "storage" | "compression";
-
 export class CameraEmbedSettingTab extends PluginSettingTab {
   plugin: CameraEmbedPlugin;
-  private activeSection: SettingsSection = "gallery";
 
   constructor(app: App, plugin: CameraEmbedPlugin) {
     super(app, plugin);
     this.plugin = plugin;
   }
 
-  display = (): void => {
-    const { containerEl } = this;
-    containerEl.empty();
-    containerEl.addClass("camera-settings");
-    containerEl.createEl("p", { text: "This plugin is primarily designed for Android. Some features may be limited on other platforms." });
+  getSettingDefinitions() {
+    return [
+      {
+        name: "This plugin is primarily designed for Android. Some features may be limited on other platforms.",
+      },
 
-    const tabs = containerEl.createDiv({ cls: "camera-settings-tabs" });
-    this.addTab(tabs, "gallery", "Gallery");
-    this.addTab(tabs, "storage", "Photo storage");
-    this.addTab(tabs, "compression", "Image compression");
+      {
+        type: "group" as const,
+        heading: "Gallery",
+        items: [
+          {
+            name: "Enable gallery",
+            desc: "Use the gallery instead of taking a photo directly.",
+            control: {
+              type: "toggle" as const,
+              key: "galleryEnabled",
+            },
+          },
+          {
+            name: "Open gallery in sidebar",
+            desc: "Open the gallery in the right sidebar when using the camera button.",
+            visible: () => this.plugin.settings.galleryEnabled,
+            control: {
+              type: "toggle" as const,
+              key: "openGalleryInSidebar",
+            },
+          },
+        ],
+      },
 
-    const content = containerEl.createDiv({ cls: "camera-settings-content" });
-    if (this.activeSection === "gallery") this.displayGallery(content);
-    else if (this.activeSection === "storage") this.displayStorage(content);
-    else this.displayCompression(content);
-  };
+      {
+        type: "group" as const,
+        heading: "Photo storage",
+        items: [
+          {
+            name: "Photos folder",
+            desc: "Folder used to store photos.",
+            control: {
+              type: "text" as const,
+              key: "photosFolder",
+              placeholder: "photos",
+            },
+          },
+          {
+            name: "Organize photos by month",
+            desc: "Save photos in year and month folders.",
+            control: {
+              type: "toggle" as const,
+              key: "organizePhotosByMonth",
+            },
+          },
+          {
+            name: "Create folder if missing",
+            desc: "Create the photos folder automatically when needed.",
+            control: {
+              type: "toggle" as const,
+              key: "createFolderIfMissing",
+            },
+          },
+          {
+            name: "Save near the note",
+            desc: "Save camera photos beside the current note.",
+            visible: () => !this.plugin.settings.galleryEnabled,
+            control: {
+              type: "toggle" as const,
+              key: "saveNearTheNote",
+            },
+          },
+        ],
+      },
 
-  getSettingDefinitions() { return []; }
-
-  private refresh() {
-    const settingsTab = this as unknown as { update: () => void };
-    settingsTab.update();
-  }
-
-  private addTab(container: HTMLElement, section: SettingsSection, label: string) {
-    const tab = container.createEl("button", { text: label, cls: "camera-settings-tab" });
-    tab.toggleClass("is-active", this.activeSection === section);
-    tab.addEventListener("click", () => {
-      this.activeSection = section;
-      this.refresh();
-    });
-  }
-
-  private displayGallery(container: HTMLElement) {
-    new Setting(container).setName("Enable gallery")
-      .setDesc("Adds a custom vault-wide gallery. When enabled, the camera button opens the gallery instead of directly taking a photo.")
-      .addToggle((toggle) => toggle.setValue(this.plugin.settings.galleryEnabled).onChange(async (value) => {
-        this.plugin.settings.galleryEnabled = value;
-        if (value) this.plugin.settings.saveNearTheNote = false;
-        await this.plugin.saveSettings();
-        this.refresh();
-      }));
-
-    new Setting(container).setName("Open gallery in sidebar")
-      .setDesc("Open gallery in the right sidebar when using the camera button. Available on desktop only.")
-      .addToggle((toggle) => toggle.setValue(this.plugin.settings.openGalleryInSidebar)
-        .setDisabled(!this.plugin.settings.galleryEnabled || !Platform.isDesktop)
-        .onChange(async (value) => { this.plugin.settings.openGalleryInSidebar = value; await this.plugin.saveSettings(); }));
-  }
-
-  private displayStorage(container: HTMLElement) {
-    new Setting(container).setName("Photos folder")
-      .setDesc("Vault-relative folder used for gallery photos and camera photos when save near the note is disabled.")
-      .addText((text) => text.setPlaceholder("Photos folder").setValue(this.plugin.settings.photosFolder)
-        .onChange(async (value) => { this.plugin.settings.photosFolder = value.trim(); await this.plugin.saveSettings(); }));
-
-    new Setting(container).setName("Organize photos by month")
-      .setDesc("Save new camera captures in year and month folders, for example photos/2026/08/.")
-      .addToggle((toggle) => toggle.setValue(this.plugin.settings.organizePhotosByMonth)
-        .onChange(async (value) => { this.plugin.settings.organizePhotosByMonth = value; await this.plugin.saveSettings(); }));
-
-    new Setting(container).setName("Create folder if missing")
-      .setDesc("Automatically create the photos folder when it does not exist.")
-      .addToggle((toggle) => toggle.setValue(this.plugin.settings.createFolderIfMissing)
-        .onChange(async (value) => { this.plugin.settings.createFolderIfMissing = value; await this.plugin.saveSettings(); }));
-
-    new Setting(container).setName("Save near the note")
-      .setDesc(this.plugin.settings.galleryEnabled
-        ? "Disabled while gallery is enabled. Gallery mode always uses the photos folder."
-        : "Save camera photos beside the current note instead of the global photos folder.")
-      .addToggle((toggle) => toggle.setValue(this.plugin.settings.saveNearTheNote).setDisabled(this.plugin.settings.galleryEnabled)
-        .onChange(async (value) => {
-          if (this.plugin.settings.galleryEnabled) return;
-          this.plugin.settings.saveNearTheNote = value;
-          await this.plugin.saveSettings();
-        }));
-  }
-
-  private displayCompression(container: HTMLElement) {
-    new Setting(container).setName("Compress images")
-      .setDesc("Reduce photo file sizes before saving camera captures.")
-      .addToggle((toggle) => toggle.setValue(this.plugin.settings.compressImages)
-        .onChange(async (value) => { this.plugin.settings.compressImages = value; await this.plugin.saveSettings(); }));
-
-    new Setting(container).setName("Compress quality")
-      .setDesc("Lower values produce smaller files but lower image quality.")
-      .addSlider((slider) => slider.setLimits(0, 0.9, 0.05).setValue(this.plugin.settings.compressQuality).setDynamicTooltip()
-        .onChange(async (value) => { this.plugin.settings.compressQuality = value; await this.plugin.saveSettings(); }));
+      {
+        type: "group" as const,
+        heading: "Image compression",
+        items: [
+          {
+            name: "Compress images",
+            desc: "Reduce photo file sizes before saving.",
+            control: {
+              type: "toggle" as const,
+              key: "compressImages",
+            },
+          },
+          {
+            name: "Compression quality",
+            desc: "Lower values create smaller files with lower image quality.",
+            visible: () => this.plugin.settings.compressImages,
+            control: {
+              type: "slider" as const,
+              key: "compressQuality",
+              min: 0,
+              max: 0.9,
+              step: 0.05,
+            },
+          },
+        ],
+      },
+    ];
   }
 }
