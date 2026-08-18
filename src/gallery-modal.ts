@@ -1,4 +1,4 @@
-import { App, Modal, Notice, TFile, setIcon } from "obsidian";
+import {App, Modal, Notice, TFile, setIcon, Platform} from "obsidian";
 import { createFolderPath, getMonthlyFolder } from "./file-utils.js";
 
 const IMAGE_EXTENSIONS = new Set(["jpg", "jpeg", "png", "gif", "webp", "bmp", "svg", "avif"]);
@@ -47,10 +47,12 @@ export class GalleryModal extends Modal {
     title.createSpan({ text: "Gallery" });
     this.selectionLabel = header.createDiv({ cls: "camera-gallery-selection" });
     const toolbar = contentEl.createDiv({ cls: "camera-gallery-toolbar" });
-    const take = toolbar.createEl("button", { cls: "mod-cta" });
-    setIcon(take, "camera");
-    take.createSpan({ text: "Take photo to gallery" });
-    take.addEventListener("click", () => void this.takePhoto());
+    if (Platform.isMobile) {
+      const take = toolbar.createEl("button", { cls: "mod-cta" });
+      setIcon(take, "camera");
+      take.createSpan({ text: "Take photo to gallery" });
+      take.addEventListener("click", () => void this.takePhoto());
+    }
     const upload = toolbar.createEl("button", { cls: "camera-gallery-upload" });
     setIcon(upload, "upload");
     upload.createSpan({ text: "Upload to gallery" });

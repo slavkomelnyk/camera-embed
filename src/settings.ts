@@ -1,4 +1,4 @@
-import { App, PluginSettingTab } from "obsidian";
+import {App, Platform, PluginSettingTab} from "obsidian";
 import CameraEmbedPlugin from "./main.js";
 
 export interface CameraEmbedSettings {
@@ -52,7 +52,7 @@ export class CameraEmbedSettingTab extends PluginSettingTab {
           {
             name: "Open gallery in sidebar",
             desc: "Open the gallery in the right sidebar when using the camera button.",
-            visible: () => this.plugin.settings.galleryEnabled,
+            visible: () => this.plugin.settings.galleryEnabled && !Platform.isMobile,
             control: {
               type: "toggle" as const,
               key: "openGalleryInSidebar",
