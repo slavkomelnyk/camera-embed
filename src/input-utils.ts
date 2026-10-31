@@ -1,30 +1,24 @@
-export async function pickImageFromCamera(source: string = "gallery"): Promise<File | null> {
-  const files = await pickImages(source);
-  return files[0] ?? null;
-}
+export type PickSource = "camera" | "gallery";
 
-export function pickImages(source: string = "gallery"): Promise<File[]> {
+/**
+ * Opens the native file/camera picker. There is deliberately no timeout:
+ * on Android the user may stay in the camera app for a long time, and a timer
+ * would throw the photo away. Cancelling resolves with an empty list.
+ */
+export function pickImages(source: PickSource = "gallery"): Promise<File[]> {
   return new Promise((resolve) => {
-    const input = document.body.createEl("input", { cls: "camera-hidden", type: "file" });
+    const input = activeDocument.body.createEl("input", { cls: "camera-hidden", type: "file" });
     input.accept = "image/*";
     input.multiple = source !== "camera";
     if (source === "camera") input.setAttribute("capture", "environment");
 
-    const timeoutId = window.setTimeout(() => {
-      input.remove();
-      resolve([]);
-    }, 60_000);
-
-    const cleanup = (files: File[]) => {
-      window.clearTimeout(timeoutId);
+    const finish = (files: File[]) => {
       input.remove();
       resolve(files);
     };
 
-    input.addEventListener("change", () => {
-      const files = input.files;
-      cleanup(files ? Array.from(files) : []);
-    });
+    input.addEventListener("change", () => finish(input.files ? Array.from(input.files) : []));
+    input.addEventListener("cancel", () => finish([]));
 
     input.click();
   });

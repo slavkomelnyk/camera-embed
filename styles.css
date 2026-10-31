@@ -1,34 +1,444 @@
+/* ==========================================================================
+   Camera Embed
+   Uses Obsidian CSS variables only, so it follows any theme, light or dark.
+   ========================================================================== */
+
 .camera-hidden { display: none; }
-.camera-settings-tabs { display: flex; flex-wrap: wrap; gap: var(--size-4-2); margin: var(--size-4-4) 0; border-bottom: 1px solid var(--background-modifier-border); }
-.camera-settings-tab { margin-bottom: -1px; padding: var(--size-4-2) var(--size-4-3); border: 0; border-bottom: 2px solid transparent; border-radius: 0; background: transparent; color: var(--text-muted); }
-.camera-settings-tab:hover { background: var(--background-modifier-hover); color: var(--text-normal); }
-.camera-settings-tab.is-active { border-bottom-color: var(--interactive-accent); color: var(--text-normal); font-weight: 600; }
 
-.modal.camera-gallery-modal-container { width: min(1100px, 94vw); max-width: 94vw; height: min(760px, 86vh); max-height: 86vh; }
-.modal.camera-gallery-modal-container .modal-content { min-height: 0; height: 100%; max-height: none; overflow: hidden; display: flex; flex-direction: column; }
-.camera-gallery-modal { min-height: 0; flex: 1 1 auto; width: 100%; height: 100%; box-sizing: border-box; display: flex; flex-direction: column; gap: var(--size-4-2); overflow: hidden; }
-.camera-gallery-header { flex: 0 0 auto; display: flex; align-items: center; justify-content: space-between; gap: var(--size-4-2); }
-.camera-gallery-title { display: inline-flex; align-items: center; gap: var(--size-4-1); font-weight: 600; font-size: var(--font-ui-large); }
-.camera-gallery-selection, .camera-gallery-status { color: var(--text-muted); font-size: var(--font-ui-small); }
-.camera-gallery-toolbar { flex: 0 0 auto; display: flex; justify-content: flex-end; flex-wrap: wrap; gap: var(--size-4-2); }
-.camera-gallery-toolbar button { display: inline-flex; align-items: center; gap: var(--size-4-1); }
-.camera-gallery-status { flex: 0 0 auto; min-height: 18px; }
-.camera-gallery-grid { flex: 1 1 auto; min-height: 0; min-width: 0; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); grid-auto-rows: min-content; align-content: start; gap: 6px; overflow-y: auto; overflow-x: hidden; overscroll-behavior: contain; padding: 4px 2px 8px; scrollbar-gutter: stable; }
-.camera-gallery-item { position: relative; width: 100%; aspect-ratio: 1; min-width: 0; overflow: hidden; border-radius: var(--radius-s); cursor: pointer; background: var(--background-secondary); border: 2px solid transparent; box-sizing: border-box; }
-.camera-gallery-item:hover { border-color: var(--background-modifier-border-hover); }
-.camera-gallery-item.is-selected { border-color: var(--interactive-accent); }
-.camera-gallery-thumbnail { width: 100%; height: 100%; display: block; object-fit: cover; }
-.camera-gallery-badge { position: absolute; top: 7px; right: 7px; min-width: 24px; height: 24px; padding: 0 5px; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: var(--interactive-accent); color: var(--text-on-accent); font-size: 12px; font-weight: 700; box-shadow: 0 1px 4px rgba(0,0,0,.25); }
-.camera-gallery-name { position: absolute; left: 0; right: 0; bottom: 0; padding: 20px 6px 6px; color: white; background: linear-gradient(transparent, rgba(0,0,0,.75)); font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; pointer-events: none; }
-.camera-gallery-footer { flex: 0 0 auto; display: flex; align-items: center; justify-content: space-between; gap: var(--size-4-2); padding-top: var(--size-4-2); border-top: 1px solid var(--background-modifier-border); }
-.camera-gallery-view { height: 100%; padding: var(--size-4-2); }
+/* Thumbnail size. The zoom slider sets --camera-gallery-size on the gallery element. */
+.camera-gallery-modal,
+.camera-gallery-view {
+  --camera-gallery-size: 150px;
+  --camera-gallery-gap: 6px;
+}
+
+/* -------------------------------------------------------------------------
+   Modal shell
+   ------------------------------------------------------------------------- */
+.modal.camera-gallery-modal-container {
+  width: min(1100px, 94vw);
+  max-width: 94vw;
+  height: min(760px, 86vh);
+  max-height: 86vh;
+}
+
+.modal.camera-gallery-modal-container .modal-content {
+  min-height: 0;
+  height: 100%;
+  max-height: none;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.camera-gallery-modal {
+  position: relative; /* anchors the drop overlay */
+  min-height: 0;
+  flex: 1 1 auto;
+  width: 100%;
+  height: 100%;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: var(--size-4-2);
+  overflow: hidden;
+}
+
+.camera-gallery-view {
+  height: 100%;
+  padding: var(--size-4-2);
+}
 .camera-gallery-view > .camera-gallery-modal { height: 100%; }
-.modal.camera-photo-preview-modal-container { width: min(760px, 94vw); max-width: 94vw; }
-.camera-photo-preview-modal { display: flex; flex-direction: column; gap: var(--size-4-2); }
-.camera-photo-preview-image { display: block; width: 100%; max-height: min(55vh, 520px); object-fit: contain; border-radius: var(--radius-s); background: var(--background-secondary); }
-.camera-photo-preview-modal h3 { margin: var(--size-4-1) 0 0; font-size: var(--font-ui-medium); }
-.camera-photo-preview-usages { display: flex; flex-direction: column; gap: 4px; max-height: 180px; overflow-y: auto; color: var(--text-muted); }
-.camera-photo-preview-usage { overflow: hidden; text-align: left; text-overflow: ellipsis; white-space: nowrap; }
 
-@media (max-width: 800px) { .modal.camera-gallery-modal-container { width: 94vw; max-width: 94vw; height: 86vh; max-height: 86vh; } .camera-gallery-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
-@media (max-width: 600px) { .modal.camera-gallery-modal-container { width: 96vw; max-width: 96vw; height: 88vh; max-height: 88vh; } .modal.camera-photo-preview-modal-container { width: 96vw; max-width: 96vw; } .camera-gallery-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4px; } .camera-gallery-name { display: none; } .camera-gallery-toolbar { justify-content: stretch; } .camera-gallery-toolbar button { flex: 1 1 0; justify-content: center; } }
+/* -------------------------------------------------------------------------
+   Header, toolbar, controls, status
+   ------------------------------------------------------------------------- */
+.camera-gallery-header {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--size-4-2);
+}
+
+.camera-gallery-title {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--size-4-1);
+  font-weight: 600;
+  font-size: var(--font-ui-large);
+}
+
+.camera-gallery-selection,
+.camera-gallery-status {
+  color: var(--text-muted);
+  font-size: var(--font-ui-small);
+}
+
+.camera-gallery-selection {
+  padding: 2px var(--size-4-2);
+  border-radius: var(--radius-m);
+  background: var(--background-secondary);
+}
+
+.camera-gallery-toolbar {
+  flex: 0 0 auto;
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--size-4-2);
+}
+
+.camera-gallery-toolbar button {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--size-4-1);
+}
+
+/* Search, sort, scope, month grouping and zoom */
+.camera-gallery-controls {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--size-4-2);
+}
+
+.camera-gallery-search {
+  flex: 1 1 160px;
+  min-width: 120px;
+}
+.camera-gallery-search input { width: 100%; }
+
+.camera-gallery-controls select { max-width: 150px; }
+
+.camera-gallery-group.is-active {
+  color: var(--interactive-accent);
+  background: var(--background-modifier-hover);
+}
+
+.camera-gallery-zoom {
+  flex: 0 1 110px;
+  width: 110px;
+  min-width: 70px;
+}
+
+.camera-gallery-status {
+  flex: 0 0 auto;
+  min-height: 18px;
+}
+
+/* -------------------------------------------------------------------------
+   Grid
+   ------------------------------------------------------------------------- */
+.camera-gallery-grid {
+  flex: 1 1 auto;
+  min-height: 0;
+  min-width: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(var(--camera-gallery-size), 1fr));
+  grid-auto-rows: min-content;
+  align-content: start;
+  gap: var(--camera-gallery-gap);
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+  padding: 4px 2px 8px;
+  scrollbar-gutter: stable;
+}
+
+/* Month headings span the full row and stay visible while scrolling */
+.camera-gallery-month {
+  grid-column: 1 / -1;
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  padding: var(--size-4-1);
+  background: var(--background-primary);
+  color: var(--text-muted);
+  font-size: var(--font-ui-small);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+/* -------------------------------------------------------------------------
+   Items
+   ------------------------------------------------------------------------- */
+.camera-gallery-item {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1;
+  min-width: 0;
+  overflow: hidden;
+  border-radius: var(--radius-m);
+  cursor: pointer;
+  box-sizing: border-box;
+  border: 2px solid transparent;
+  /* Soft shimmer until the thumbnail has loaded */
+  background: linear-gradient(
+    100deg,
+    var(--background-secondary) 30%,
+    var(--background-modifier-hover) 50%,
+    var(--background-secondary) 70%
+  );
+  background-size: 200% 100%;
+  animation: camera-gallery-shimmer 1.4s linear infinite;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+}
+
+/* Stop the shimmer once loaded (saves work with thousands of photos) */
+.camera-gallery-item.is-loaded {
+  animation: none;
+  background: var(--background-secondary);
+}
+
+.camera-gallery-thumbnail {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;
+  background: var(--background-secondary);
+  animation: camera-gallery-fade-in 0.2s ease-out;
+  transition: transform 0.2s ease, opacity 0.15s ease;
+  -webkit-user-drag: none; /* the tile is the drag handle, not the image */
+  .camera-gallery-item[draggable="true"] { cursor: grab; }
+  .camera-gallery-item[draggable="true"]:active { cursor: grabbing; }
+}
+
+.camera-gallery-item.is-selected {
+  border-color: var(--interactive-accent);
+  box-shadow: inset 0 0 0 2px var(--interactive-accent);
+}
+.camera-gallery-item.is-selected .camera-gallery-thumbnail { opacity: 0.8; }
+
+.camera-gallery-item:focus-visible {
+  outline: 2px solid var(--interactive-accent);
+  outline-offset: 2px;
+}
+
+.camera-gallery-item.is-dragging { opacity: 0.5; }
+
+.camera-gallery-badge {
+  position: absolute;
+  top: 7px;
+  right: 7px;
+  min-width: 24px;
+  height: 24px;
+  padding: 0 5px;
+  box-sizing: border-box;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--interactive-accent);
+  color: var(--text-on-accent);
+  font-size: 12px;
+  font-weight: 700;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+}
+.camera-gallery-badge:empty { display: none; }
+
+.camera-gallery-name {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: 20px 6px 6px;
+  color: white;
+  background: linear-gradient(transparent, rgba(0, 0, 0, 0.75));
+  font-size: 11px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  pointer-events: none;
+}
+
+/* Hover effects only on devices that can hover, so touch screens don't get stuck states */
+@media (hover: hover) {
+  .camera-gallery-item:hover { border-color: var(--background-modifier-border-hover); }
+  .camera-gallery-item.is-selected:hover { border-color: var(--interactive-accent); }
+  .camera-gallery-item:hover .camera-gallery-thumbnail { transform: scale(1.04); }
+}
+
+/* -------------------------------------------------------------------------
+   Empty state
+   ------------------------------------------------------------------------- */
+.camera-gallery-empty {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--size-4-2);
+  padding: var(--size-4-12) var(--size-4-4);
+  color: var(--text-muted);
+  text-align: center;
+}
+.camera-gallery-empty svg { width: 40px; height: 40px; opacity: 0.6; }
+
+/* -------------------------------------------------------------------------
+   Drag and drop (used by the upcoming drag and drop step)
+   ------------------------------------------------------------------------- */
+.camera-gallery-drop-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--size-4-2);
+  box-sizing: border-box;
+  border: 2px dashed var(--interactive-accent);
+  border-radius: var(--radius-l);
+  background: color-mix(in srgb, var(--background-primary) 88%, transparent);
+  color: var(--interactive-accent);
+  font-size: var(--font-ui-large);
+  font-weight: 600;
+  pointer-events: none; /* so the drop lands on the gallery itself */
+}
+.camera-gallery-drop-overlay svg { width: 36px; height: 36px; }
+.camera-gallery-modal.is-dragover > .camera-gallery-drop-overlay { display: flex; }
+
+/* Small label that follows the cursor when dragging several photos ("3 photos") */
+.camera-gallery-drag-image {
+  position: fixed;
+  top: -1000px;
+  left: -1000px;
+  padding: 4px 10px;
+  border-radius: var(--radius-m);
+  background: var(--interactive-accent);
+  color: var(--text-on-accent);
+  font-size: var(--font-ui-small);
+  font-weight: 600;
+}
+
+/* -------------------------------------------------------------------------
+   Footer (action bar)
+   ------------------------------------------------------------------------- */
+.camera-gallery-footer {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--size-4-2);
+  padding-top: var(--size-4-2);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  border-top: 1px solid var(--background-modifier-border);
+}
+
+/* -------------------------------------------------------------------------
+   Photo preview modal
+   ------------------------------------------------------------------------- */
+.modal.camera-photo-preview-modal-container {
+  width: min(760px, 94vw);
+  max-width: 94vw;
+}
+
+.camera-photo-preview-modal {
+  display: flex;
+  flex-direction: column;
+  gap: var(--size-4-2);
+}
+
+.camera-photo-preview-image {
+  display: block;
+  width: 100%;
+  max-height: min(55vh, 520px);
+  object-fit: contain;
+  border-radius: var(--radius-m);
+  background: var(--background-secondary);
+}
+
+.camera-photo-preview-modal h3 {
+  margin: var(--size-4-1) 0 0;
+  font-size: var(--font-ui-medium);
+}
+
+.camera-photo-preview-usages {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 180px;
+  overflow-y: auto;
+  color: var(--text-muted);
+}
+
+.camera-photo-preview-usage {
+  overflow: hidden;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* -------------------------------------------------------------------------
+   Animations
+   ------------------------------------------------------------------------- */
+@keyframes camera-gallery-shimmer {
+  from { background-position: 200% 0; }
+  to   { background-position: -200% 0; }
+}
+
+@keyframes camera-gallery-fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .camera-gallery-item,
+  .camera-gallery-thumbnail {
+    animation: none;
+    transition: none;
+  }
+  .camera-gallery-item { background: var(--background-secondary); }
+}
+
+/* -------------------------------------------------------------------------
+   Touch devices: bigger tap targets
+   ------------------------------------------------------------------------- */
+@media (pointer: coarse) {
+  .camera-gallery-toolbar button,
+  .camera-gallery-footer button { min-height: 44px; }
+  .camera-gallery-badge { min-width: 28px; height: 28px; font-size: 13px; }
+}
+
+/* -------------------------------------------------------------------------
+   Small screens
+   ------------------------------------------------------------------------- */
+@media (max-width: 800px) {
+  .modal.camera-gallery-modal-container {
+    width: 94vw;
+    max-width: 94vw;
+    height: 86vh;
+    max-height: 86vh;
+  }
+  .camera-gallery-modal,
+  .camera-gallery-view { --camera-gallery-size: 120px; }
+}
+
+@media (max-width: 600px) {
+  .modal.camera-gallery-modal-container {
+    width: 96vw;
+    max-width: 96vw;
+    height: 88vh;
+    max-height: 88vh;
+  }
+  .modal.camera-photo-preview-modal-container { width: 96vw; max-width: 96vw; }
+
+  .camera-gallery-modal,
+  .camera-gallery-view {
+    --camera-gallery-size: 96px;
+    --camera-gallery-gap: 4px;
+  }
+
+  .camera-gallery-name { display: none; }
+  .camera-gallery-toolbar { justify-content: stretch; }
+  .camera-gallery-toolbar button { flex: 1 1 0; justify-content: center; }
+  .camera-gallery-footer button { flex: 1 1 0; }
+
+  /* Controls: search takes the full first row, the rest share the second */
+  .camera-gallery-search { flex-basis: 100%; }
+  .camera-gallery-controls select { flex: 1 1 0; max-width: none; }
+}
