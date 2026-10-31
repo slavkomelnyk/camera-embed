@@ -2,8 +2,14 @@
 
 All notable changes to **this project** will be documented in this file.
 
-## 2.3.0
-- Fixed bugs
+## 2.3.0 - 2.3.1
+- Removed "Copy link" from the gallery menu, so the plugin no longer uses the clipboard.
+- Gallery: "Show" option (photos folder or whole vault). The default is the photos folder only.
+- "Save near the note" now also works in the gallery for uploads and camera photos.
+- "Insert with width" in the gallery menu now lists the widths directly (300, 500 and 800 px).
+- Requires Obsidian 1.13.0 or newer. Removed the old settings fallback for earlier versions.
+- Fixed code issues flagged by the community plugin review.
+- Updated the `moment` dependency to the patched version 2.31.0.
 
 ## 2.2.0
 - Restored picker

@@ -1,6 +1,6 @@
 import { TFolder, Vault } from "obsidian";
 
-const pad = (n: number) => String(n).padStart(2, "0");
+const pad = (n: number): string => (n < 10 ? `0${n}` : String(n));
 
 /** Local time (not UTC): 2026-10-31_14-05-09 */
 function localStamp(date = new Date()): string {

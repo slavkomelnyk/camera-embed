@@ -53,12 +53,14 @@ export default class CameraEmbedPlugin extends Plugin {
     return null;
   }
 
+  /** Folder of the note photos should be saved next to (used by "Save near the note" in the gallery). */
+  getTargetNoteFolder(): string | undefined {
+    return this.getTargetMarkdownView()?.file?.parent?.path;
+  }
+
   private normalizeSettings() {
     // Gallery and image picker are mutually exclusive; gallery wins if both are set
-    if (this.settings.galleryEnabled) {
-      this.settings.imagePickerEnabled = false;
-      this.settings.saveNearTheNote = false;
-    }
+    if (this.settings.galleryEnabled) this.settings.imagePickerEnabled = false;
     if (!this.settings.galleryEnabled) this.settings.openGalleryInSidebar = false;
   }
 
@@ -127,7 +129,7 @@ export default class CameraEmbedPlugin extends Plugin {
       new Notice("Please open a Markdown note to insert the photo.");
       return;
     }
-    const files = await pickImages(source);
+    const files = await pickImages(source, this.app.workspace.containerEl);
     if (files.length > 0) await this.saveAndEmbed(files, view);
   }
 

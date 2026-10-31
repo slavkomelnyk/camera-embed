@@ -1,4 +1,4 @@
-import { App, Platform, PluginSettingTab, Setting } from "obsidian";
+import { App, Platform, PluginSettingTab, type SettingDefinitionItem } from "obsidian";
 import type CameraEmbedPlugin from "./main.js";
 
 export type CompressionMode = "minimal" | "expert";
@@ -53,35 +53,10 @@ export const DEFAULT_SETTINGS: CameraEmbedSettings = {
   compressMinSizeKB: 0,
 
   gallerySort: "newest",
-  galleryScope: "vault",
+  galleryScope: "folder",
   galleryGroupByMonth: true,
   galleryThumbSize: 0,
 };
-
-/* ---- Loose shapes used only by the display() fallback (Obsidian < 1.13) ---- */
-interface FallbackControl {
-  type: "toggle" | "text" | "slider" | "dropdown" | "number";
-  key: string;
-  placeholder?: string;
-  min?: number;
-  max?: number;
-  step?: number;
-  options?: Record<string, string>;
-  disabled?: () => boolean;
-}
-interface FallbackRow {
-  name: string;
-  desc?: string;
-  visible?: () => boolean;
-  control?: FallbackControl;
-}
-interface FallbackGroup {
-  type: "group";
-  heading: string;
-  visible?: () => boolean;
-  items: FallbackRow[];
-}
-type FallbackItem = FallbackRow | FallbackGroup;
 
 export class CameraEmbedSettingTab extends PluginSettingTab {
   plugin: CameraEmbedPlugin;
@@ -92,7 +67,7 @@ export class CameraEmbedSettingTab extends PluginSettingTab {
   }
 
   /** Obsidian 1.13+ renders from this. */
-  getSettingDefinitions(): any {
+  getSettingDefinitions(): SettingDefinitionItem[] {
     const s = () => this.plugin.settings;
     const expert = () => s().compressImages && s().compressionMode === "expert";
     const minimal = () => s().compressImages && s().compressionMode === "minimal";
@@ -103,14 +78,14 @@ export class CameraEmbedSettingTab extends PluginSettingTab {
       },
 
       {
-        type: "group" as const,
+        type: "group",
         heading: "Choose photo",
         items: [
           {
             name: "Enable image picker (optional)",
             desc: "Show a prompt to choose between taking a new photo or picking an existing one from the gallery.",
             control: {
-              type: "toggle" as const,
+              type: "toggle",
               key: "imagePickerEnabled",
               // Locked while gallery is on, unless this one is already on (so it can be turned off)
               disabled: () => s().galleryEnabled && !s().imagePickerEnabled,
@@ -118,9 +93,9 @@ export class CameraEmbedSettingTab extends PluginSettingTab {
           },
           {
             name: "Enable gallery (optional)",
-            desc: "Use the gallery instead of taking a photo directly.",
+            desc: "Use the gallery instead of taking a photo directly. The gallery shows the images in your photos folder.",
             control: {
-              type: "toggle" as const,
+              type: "toggle",
               key: "galleryEnabled",
               // Locked while image picker is on, unless this one is already on
               disabled: () => s().imagePickerEnabled && !s().galleryEnabled,
@@ -131,7 +106,7 @@ export class CameraEmbedSettingTab extends PluginSettingTab {
             desc: "Open the gallery in the right sidebar when using the camera button.",
             visible: () => s().galleryEnabled && !Platform.isMobile,
             control: {
-              type: "toggle" as const,
+              type: "toggle",
               key: "openGalleryInSidebar",
             },
           },
@@ -139,7 +114,7 @@ export class CameraEmbedSettingTab extends PluginSettingTab {
       },
 
       {
-        type: "group" as const,
+        type: "group",
         heading: "Gallery",
         visible: () => s().galleryEnabled,
         items: [
@@ -147,25 +122,25 @@ export class CameraEmbedSettingTab extends PluginSettingTab {
             name: "Default sort",
             desc: "How photos are ordered when the gallery opens. You can also change this inside the gallery.",
             control: {
-              type: "dropdown" as const,
+              type: "dropdown",
               key: "gallerySort",
-              options: { newest: "Newest first", oldest: "Oldest first", name: "Name", size: "Largest first" } as Record<string, string>,
+              options: { newest: "Newest first", oldest: "Oldest first", name: "Name", size: "Largest first" },
             },
           },
           {
             name: "Show",
-            desc: "Show every image in the vault, or only the images inside your photos folder.",
+            desc: "Photos folder: only the images in your photos folder are read. Whole vault: lists every image in the vault, which is needed to see photos saved next to notes.",
             control: {
-              type: "dropdown" as const,
+              type: "dropdown",
               key: "galleryScope",
-              options: { vault: "Whole vault", folder: "Photos folder only" } as Record<string, string>,
+              options: { folder: "Photos folder only", vault: "Whole vault" },
             },
           },
           {
             name: "Group by month",
             desc: "Add month headings (only when sorted by date).",
             control: {
-              type: "toggle" as const,
+              type: "toggle",
               key: "galleryGroupByMonth",
             },
           },
@@ -173,14 +148,14 @@ export class CameraEmbedSettingTab extends PluginSettingTab {
       },
 
       {
-        type: "group" as const,
+        type: "group",
         heading: "Photo storage",
         items: [
           {
             name: "Photos folder",
             desc: "Folder used to store photos.",
             control: {
-              type: "text" as const,
+              type: "text",
               key: "photosFolder",
               placeholder: "photos",
             },
@@ -189,7 +164,7 @@ export class CameraEmbedSettingTab extends PluginSettingTab {
             name: "Organize photos by month",
             desc: "Save photos in year and month folders.",
             control: {
-              type: "toggle" as const,
+              type: "toggle",
               key: "organizePhotosByMonth",
             },
           },
@@ -197,16 +172,15 @@ export class CameraEmbedSettingTab extends PluginSettingTab {
             name: "Create folder if missing",
             desc: "Create the photos folder automatically when needed.",
             control: {
-              type: "toggle" as const,
+              type: "toggle",
               key: "createFolderIfMissing",
             },
           },
           {
             name: "Save near the note",
-            desc: "Save camera photos beside the current note.",
-            visible: () => !s().galleryEnabled,
+            desc: "Save camera photos beside the current note. In the gallery they only show up when \"Show\" is set to the whole vault.",
             control: {
-              type: "toggle" as const,
+              type: "toggle",
               key: "saveNearTheNote",
             },
           },
@@ -214,14 +188,14 @@ export class CameraEmbedSettingTab extends PluginSettingTab {
       },
 
       {
-        type: "group" as const,
+        type: "group",
         heading: "Image compression",
         items: [
           {
             name: "Compress images",
             desc: "Reduce photo file sizes before saving. Applies to camera photos, picked photos and gallery uploads.",
             control: {
-              type: "toggle" as const,
+              type: "toggle",
               key: "compressImages",
             },
           },
@@ -230,9 +204,9 @@ export class CameraEmbedSettingTab extends PluginSettingTab {
             desc: "Minimal: pick a preset. Expert: control size, quality, format and metadata yourself.",
             visible: () => s().compressImages,
             control: {
-              type: "dropdown" as const,
+              type: "dropdown",
               key: "compressionMode",
-              options: { minimal: "Minimal", expert: "Expert" } as Record<string, string>,
+              options: { minimal: "Minimal", expert: "Expert" },
             },
           },
 
@@ -242,13 +216,13 @@ export class CameraEmbedSettingTab extends PluginSettingTab {
             desc: "Light: 85% quality, up to 3000 px. Balanced: 75%, up to 2048 px. Strong: 60%, up to 1600 px (smallest files).",
             visible: minimal,
             control: {
-              type: "dropdown" as const,
+              type: "dropdown",
               key: "compressionPreset",
               options: {
                 light: "Light",
                 balanced: "Balanced (recommended)",
                 strong: "Strong",
-              } as Record<string, string>,
+              },
             },
           },
 
@@ -258,7 +232,7 @@ export class CameraEmbedSettingTab extends PluginSettingTab {
             desc: "Lower values create smaller files with lower image quality. Ignored for lossless PNG output.",
             visible: expert,
             control: {
-              type: "slider" as const,
+              type: "slider",
               key: "compressQuality",
               min: 0.1,
               max: 0.95,
@@ -270,7 +244,7 @@ export class CameraEmbedSettingTab extends PluginSettingTab {
             desc: "Longest side of the photo, for both landscape and portrait. 0 keeps the original size.",
             visible: expert,
             control: {
-              type: "number" as const,
+              type: "number",
               key: "compressMaxDimension",
               min: 0,
             },
@@ -280,14 +254,14 @@ export class CameraEmbedSettingTab extends PluginSettingTab {
             desc: "Auto keeps the format but turns PNGs over 1 MB into JPEG (transparency becomes white). Original never changes the format. WebP is smaller than JPEG but falls back to JPEG if unsupported.",
             visible: expert,
             control: {
-              type: "dropdown" as const,
+              type: "dropdown",
               key: "compressFormat",
               options: {
                 auto: "Auto",
                 original: "Keep original format",
                 jpeg: "JPEG",
                 webp: "WebP",
-              } as Record<string, string>,
+              },
             },
           },
           {
@@ -295,7 +269,7 @@ export class CameraEmbedSettingTab extends PluginSettingTab {
             desc: "Keep camera info and GPS location in JPEG files. Off is smaller and better for privacy.",
             visible: expert,
             control: {
-              type: "toggle" as const,
+              type: "toggle",
               key: "compressKeepExif",
             },
           },
@@ -304,7 +278,7 @@ export class CameraEmbedSettingTab extends PluginSettingTab {
             desc: "Do not compress files smaller than this. 0 compresses everything.",
             visible: expert,
             control: {
-              type: "number" as const,
+              type: "number",
               key: "compressMinSizeKB",
               min: 0,
             },
@@ -312,105 +286,5 @@ export class CameraEmbedSettingTab extends PluginSettingTab {
         ],
       },
     ];
-  }
-
-  /* ------------------------------------------------------------------ */
-  /* display() fallback for Obsidian < 1.13.                             */
-  /* On 1.13+ the declarative definitions above are used instead and      */
-  /* this method is never called. It renders the same definitions.        */
-  /* ------------------------------------------------------------------ */
-  display(): void {
-    const { containerEl } = this;
-    const scrollTop = containerEl.scrollTop;
-    containerEl.empty();
-    this.renderFallback(containerEl, this.getSettingDefinitions() as unknown as FallbackItem[]);
-    containerEl.scrollTop = scrollTop;
-  }
-
-  private renderFallback(container: HTMLElement, items: FallbackItem[]) {
-    for (const item of items) {
-      if (item.visible && !item.visible()) continue;
-
-      if ("items" in item) {
-        new Setting(container).setName(item.heading).setHeading();
-        this.renderFallback(container, item.items);
-        continue;
-      }
-
-      const setting = new Setting(container).setName(item.name);
-      if (item.desc) setting.setDesc(item.desc);
-      if (item.control) this.addFallbackControl(setting, item.control);
-    }
-  }
-
-  private addFallbackControl(setting: Setting, control: FallbackControl) {
-    const store = this.plugin.settings as unknown as Record<string, unknown>;
-    const key = control.key;
-    const disabled = control.disabled?.() ?? false;
-
-    const commit = async (value: unknown, rerender: boolean) => {
-      store[key] = value;
-      await this.plugin.saveSettings();
-      if (rerender) this.display();
-    };
-
-    switch (control.type) {
-      case "toggle":
-        setting.addToggle((toggle) =>
-          toggle
-            .setValue(Boolean(store[key]))
-            .setDisabled(disabled)
-            .onChange((value) => void commit(value, true)),
-        );
-        break;
-
-      case "text": {
-        const placeholder = control.placeholder ?? "";
-        setting.addText((text) =>
-          text
-            .setPlaceholder(placeholder)
-            .setValue(String(store[key] ?? ""))
-            .onChange((value) => void commit(value, false)),
-        );
-        break;
-      }
-
-      case "slider": {
-        const { min = 0, max = 1, step = 0.05 } = control;
-        setting.addSlider((slider) =>
-          slider
-            .setLimits(min, max, step)
-            .setValue(Number(store[key]))
-            .setDynamicTooltip()
-            .onChange((value) => void commit(value, false)),
-        );
-        break;
-      }
-
-      case "dropdown": {
-        const options = control.options ?? {};
-        setting.addDropdown((dropdown) =>
-          dropdown
-            .addOptions(options)
-            .setValue(String(store[key]))
-            .onChange((value) => void commit(value, true)),
-        );
-        break;
-      }
-
-      case "number": {
-        const min = control.min;
-        setting.addText((text) => {
-          text.inputEl.type = "number";
-          if (min !== undefined) text.inputEl.min = String(min);
-          text.setValue(String(store[key] ?? 0)).onChange((value) => {
-            const parsed = Number(value);
-            if (value.trim() === "" || !Number.isFinite(parsed)) return;
-            void commit(min !== undefined ? Math.max(min, parsed) : parsed, false);
-          });
-        });
-        break;
-      }
-    }
   }
 }

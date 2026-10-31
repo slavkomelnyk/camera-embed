@@ -1,5 +1,4 @@
-import { App, EventRef, Menu, Modal, Notice, Platform, TFile, normalizePath, setIcon, MarkdownView } from "obsidian";
-import { withEmbedWidth } from "./file-utils.js";
+import { App, EventRef, MarkdownView, Menu, Modal, Notice, Platform, TFile, TFolder, normalizePath, setIcon } from "obsidian";
 import { pickImages, type PickSource } from "./input-utils.js";
 import type { CameraEmbedSettings, GalleryScope, GallerySort } from "./settings.js";
 
@@ -12,8 +11,10 @@ const WIDTH_CHOICES = [300, 500, 800];
 /** What the gallery needs from the plugin. CameraEmbedPlugin satisfies this as is. */
 export interface GalleryHost {
   settings: CameraEmbedSettings;
-  savePhotos(files: File[]): Promise<TFile[]>;
+  savePhotos(files: File[], noteFolderPath?: string): Promise<TFile[]>;
   saveSettings(): Promise<void>;
+  /** Folder of the note you are working in (for "Save near the note"). */
+  getTargetNoteFolder?(): string | undefined;
   openGallerySidebar?(): Promise<void>;
 }
 
@@ -31,6 +32,21 @@ const isImageFile = (file: File) => {
   const ext = file.name.split(".").pop()?.toLowerCase() ?? "";
   return IMAGE_EXTENSIONS.has(ext);
 };
+
+/**
+ * Collects the images inside one folder (and its subfolders).
+ * The gallery only ever reads the photos folder, never the rest of the vault.
+ */
+function collectImages(folder: TFolder, out: TFile[] = []): TFile[] {
+  for (const child of folder.children) {
+    if (child instanceof TFile) {
+      if (isImage(child)) out.push(child);
+    } else if (child instanceof TFolder) {
+      collectImages(child, out);
+    }
+  }
+  return out;
+}
 
 /** Notes that link to this photo. */
 function getUsages(app: App, file: TFile): TFile[] {
@@ -52,6 +68,7 @@ export class GalleryModal extends Modal {
   private readonly closeOnChoose: boolean;
 
   private allFiles: TFile[] = [];
+  private folderMissing = false;
   private visibleFiles: TFile[] = [];
   private itemEls = new Map<string, ItemRefs>();
   private selected = new Set<string>();
@@ -161,10 +178,11 @@ export class GalleryModal extends Modal {
 
     this.addSelect<GalleryScope>(
       controls,
-      { vault: "Whole vault", folder: "Photos folder" },
+      { folder: "Photos folder", vault: "Whole vault" },
       settings.galleryScope,
       (value) => {
         settings.galleryScope = value;
+        this.loadFiles();
         void this.persistAndRebuild();
       },
     );
@@ -206,7 +224,7 @@ export class GalleryModal extends Modal {
     this.useButton.addEventListener("click", () => this.useSelected());
     this.setActionButtonsVisible(false);
 
-    this.allFiles = this.app.vault.getFiles().filter(isImage);
+    this.loadFiles();
     this.registerVaultEvents();
     void this.rebuild();
   }
@@ -227,8 +245,8 @@ export class GalleryModal extends Modal {
 
   private addSelect<T extends string>(parent: HTMLElement, options: Record<T, string>, value: T, onChange: (value: T) => void) {
     const select = parent.createEl("select", { cls: "dropdown" });
-    for (const [key, label] of Object.entries(options) as [T, string][]) {
-      select.createEl("option", { value: key, text: label });
+    for (const key of Object.keys(options) as T[]) {
+      select.createEl("option", { value: key, text: options[key] });
     }
     select.value = value;
     select.addEventListener("change", () => onChange(select.value as T));
@@ -248,12 +266,47 @@ export class GalleryModal extends Modal {
   /* Live updates                                                        */
   /* ------------------------------------------------------------------ */
 
+  /** The configured photos folder, or "" when none is set. */
+  private photosFolderPath(): string {
+    const path = normalizePath(this.host.settings.photosFolder.trim());
+    return path === "/" ? "" : path;
+  }
+
+  /** Whether a change at this path can affect what the gallery shows. */
+  private inPhotosFolder(path: string): boolean {
+    if (this.host.settings.galleryScope === "vault") return true;
+    const folder = this.photosFolderPath();
+    return folder !== "" && path.startsWith(`${folder}/`);
+  }
+
+  /**
+   * Reads the images to show. With the default "Photos folder" scope only that folder is read;
+   * the whole vault is only listed when the user chooses the "Whole vault" scope.
+   */
+  private loadFiles() {
+    if (this.host.settings.galleryScope === "vault") {
+      this.folderMissing = false;
+      this.allFiles = this.app.vault.getFiles().filter(isImage);
+      return;
+    }
+    const path = this.photosFolderPath();
+    const folder = path ? this.app.vault.getFolderByPath(path) : null;
+    this.folderMissing = !folder;
+    this.allFiles = folder ? collectImages(folder) : [];
+  }
+
   private registerVaultEvents() {
     const vault = this.app.vault;
     this.eventRefs.push(
-      vault.on("create", (file) => { if (file instanceof TFile && isImage(file)) this.scheduleRebuild(); }),
-      vault.on("delete", () => this.scheduleRebuild()),
+      // Only changes inside the photos folder matter to the gallery
+      vault.on("create", (file) => {
+        if (file instanceof TFile && isImage(file) && this.inPhotosFolder(file.path)) this.scheduleRebuild();
+      }),
+      vault.on("delete", (file) => {
+        if (this.inPhotosFolder(file.path)) this.scheduleRebuild();
+      }),
       vault.on("rename", (file, oldPath) => {
+        if (!this.inPhotosFolder(file.path) && !this.inPhotosFolder(oldPath)) return;
         this.renameSelected(oldPath, file.path);
         this.scheduleRebuild();
       }),
@@ -272,7 +325,7 @@ export class GalleryModal extends Modal {
     this.rebuildTimer = window.setTimeout(() => {
       this.rebuildTimer = null;
       if (!this.opened) return;
-      this.allFiles = this.app.vault.getFiles().filter(isImage);
+      this.loadFiles();
       void this.rebuild(true);
     }, 200);
   }
@@ -285,15 +338,7 @@ export class GalleryModal extends Modal {
     const settings = this.host.settings;
     const query = this.query.trim().toLowerCase();
 
-    let prefix = "";
-    if (settings.galleryScope === "folder") {
-      const folder = normalizePath(settings.photosFolder.trim());
-      if (folder && folder !== "/") prefix = `${folder}/`;
-    }
-
-    const files = this.allFiles.filter(
-      (file) => (!prefix || file.path.startsWith(prefix)) && (!query || file.path.toLowerCase().includes(query)),
-    );
+    const files = this.allFiles.filter((file) => !query || file.path.toLowerCase().includes(query));
 
     switch (settings.gallerySort) {
       case "oldest": files.sort((a, b) => a.stat.mtime - b.stat.mtime); break;
@@ -364,8 +409,13 @@ export class GalleryModal extends Modal {
   private renderEmpty() {
     const empty = this.grid.createDiv({ cls: "camera-gallery-empty" });
     setIcon(empty.createDiv(), "image-off");
-    empty.createDiv({ text: this.query.trim() ? "No photos match your search." : "No photos yet." });
-    if (!this.query.trim()) {
+    const searching = this.query.trim() !== "";
+    let message = "No photos yet.";
+    if (searching) message = "No photos match your search.";
+    else if (this.host.settings.galleryScope === "folder" && this.photosFolderPath() === "") message = "Set a photos folder in the Camera Embed settings.";
+    else if (this.folderMissing) message = "The photos folder does not exist yet. Upload a photo to create it.";
+    empty.createDiv({ text: message });
+    if (!searching && (this.host.settings.galleryScope === "vault" || this.photosFolderPath() !== "")) {
       const button = empty.createEl("button", { cls: "mod-cta", text: "Upload photos" });
       button.addEventListener("click", () => void this.addPhotos("gallery"));
     }
@@ -501,7 +551,7 @@ export class GalleryModal extends Modal {
 
     // Same pipeline as every other upload (folder, month folders, compression, naming).
     // The new photos appear through the vault "create" events.
-    const saved = await this.host.savePhotos(images);
+    const saved = await this.saveFiles(images);
     if (saved.length > 0) new Notice(`Added ${saved.length} photo${saved.length === 1 ? "" : "s"} to gallery.`);
   }
 
@@ -533,7 +583,7 @@ export class GalleryModal extends Modal {
       dataTransfer.effectAllowed = "copy";
 
       if (files.length > 1) {
-        const label = activeDocument.body.createDiv({ cls: "camera-gallery-drag-image", text: `${files.length} photos` });
+        const label = this.contentEl.createDiv({ cls: "camera-gallery-drag-image", text: `${files.length} photos` });
         dataTransfer.setDragImage(label, 0, 0);
         window.setTimeout(() => label.remove(), 0);
       }
@@ -631,14 +681,12 @@ export class GalleryModal extends Modal {
       .setIcon("corner-down-left")
       .onClick(() => this.useSelected()));
 
-    menu.addItem((item) => {
-      item.setTitle("Insert with width").setIcon("move-horizontal");
-      const sub = (item as any).setSubmenu();
-      for (const width of WIDTH_CHOICES) {
-        sub.addItem((subItem: any) => subItem.setTitle(`${width} px`).onClick(() => this.useSelected(width)));
-      }
-      sub.addItem((subItem: any) => subItem.setTitle("Original size").onClick(() => this.useSelected()));
-    });
+    for (const width of WIDTH_CHOICES) {
+      menu.addItem((item) => item
+        .setTitle(`Insert at ${width} px`)
+        .setIcon("move-horizontal")
+        .onClick(() => this.useSelected(width)));
+    }
 
     if (single) {
       menu.addItem((item) => item
@@ -673,14 +721,9 @@ export class GalleryModal extends Modal {
       }
     }
 
-    // File actions
-    menu.addSeparator();
-    menu.addItem((item) => item
-      .setTitle(count > 1 ? `Copy ${count} links` : "Copy link")
-      .setIcon("copy")
-      .onClick(() => void this.copyLinks(files)));
-
+    // File actions (single photo only)
     if (single) {
+      menu.addSeparator();
       menu.addItem((item) => item
         .setTitle("Open in new tab")
         .setIcon("file-plus")
@@ -722,18 +765,6 @@ export class GalleryModal extends Modal {
       .onClick(() => void this.deleteFiles(files.map((file) => file.path))));
 
     show(menu);
-  }
-
-  private async copyLinks(files: TFile[]) {
-    const source = this.app.workspace.getActiveFile()?.path ?? "";
-    const text = files.map((file) => `!${this.app.fileManager.generateMarkdownLink(file, source)}`).join("\n");
-    try {
-      await navigator.clipboard.writeText(text);
-      new Notice(files.length === 1 ? "Copied link." : `Copied ${files.length} links.`);
-    } catch (error) {
-      console.error("Camera Embed: failed to copy", error);
-      new Notice("Could not copy to the clipboard.");
-    }
   }
 
   private renameFile(file: TFile) {
@@ -820,13 +851,24 @@ export class GalleryModal extends Modal {
     });
   }
 
+  /** Saves through the plugin's shared pipeline, honouring "Save near the note". */
+  private async saveFiles(files: File[]): Promise<TFile[]> {
+    const settings = this.host.settings;
+    const noteFolder = settings.saveNearTheNote ? this.host.getTargetNoteFolder?.() : undefined;
+    const saved = await this.host.savePhotos(files, noteFolder);
+    if (saved.length > 0 && noteFolder !== undefined && settings.galleryScope === "folder") {
+      new Notice('Saved next to the note, set the gallery to "whole vault" to see these photos here.');
+    }
+    return saved;
+  }
+
   /** Pick (or capture) photos and save them through the plugin's shared save pipeline. */
   private async addPhotos(source: PickSource) {
-    const files = await pickImages(source);
+    const files = await pickImages(source, this.app.workspace.containerEl);
     if (!files.length || !this.opened) return;
 
     // New photos show up through the vault "create" events, so nothing else to do here.
-    const saved = await this.host.savePhotos(files);
+    const saved = await this.saveFiles(files);
     if (saved.length > 0) new Notice(`Added ${saved.length} photo${saved.length === 1 ? "" : "s"} to gallery.`);
   }
 }
