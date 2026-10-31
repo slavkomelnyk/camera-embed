@@ -2,8 +2,12 @@
 
 All notable changes to **this project** will be documented in this file.
 
+## 1.2.0
+- Restored picker
+- Updated gallery
+- Fixed many bugs
 ## 1.1.0
-- Add artifact attestation in release.yml.
+- Added artifact attestation in release.yml.
 - Updated Changelog
 
 ## 1.0.16
