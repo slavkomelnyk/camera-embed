@@ -86,7 +86,7 @@ export default class CameraEmbedPlugin extends Plugin {
     }).open();
   }
 
-    private openGallery() {
+  private openGallery() {
     if (!this.getTargetMarkdownView()) {
       new Notice("Open a Markdown note before using the camera gallery.");
       return;
@@ -130,7 +130,6 @@ export default class CameraEmbedPlugin extends Plugin {
     const files = await pickImages(source);
     if (files.length > 0) await this.saveAndEmbed(files, view);
   }
-
 
   async openGallerySidebar() {
     const leaf = await this.app.workspace.ensureSideLeaf(GALLERY_VIEW_TYPE, "right", { active: true, reveal: true });

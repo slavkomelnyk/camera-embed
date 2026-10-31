@@ -1,5 +1,5 @@
 import { App, Platform, PluginSettingTab, Setting } from "obsidian";
-import type CameraEmbedPlugin from "./main";
+import type CameraEmbedPlugin from "./main.js";
 
 export type CompressionMode = "minimal" | "expert";
 export type CompressionPreset = "light" | "balanced" | "strong";
@@ -92,7 +92,7 @@ export class CameraEmbedSettingTab extends PluginSettingTab {
   }
 
   /** Obsidian 1.13+ renders from this. */
-  getSettingDefinitions() {
+  getSettingDefinitions(): any {
     const s = () => this.plugin.settings;
     const expert = () => s().compressImages && s().compressionMode === "expert";
     const minimal = () => s().compressImages && s().compressionMode === "minimal";
@@ -149,7 +149,7 @@ export class CameraEmbedSettingTab extends PluginSettingTab {
             control: {
               type: "dropdown" as const,
               key: "gallerySort",
-              options: { newest: "Newest first", oldest: "Oldest first", name: "Name", size: "Largest first" },
+              options: { newest: "Newest first", oldest: "Oldest first", name: "Name", size: "Largest first" } as Record<string, string>,
             },
           },
           {
@@ -158,7 +158,7 @@ export class CameraEmbedSettingTab extends PluginSettingTab {
             control: {
               type: "dropdown" as const,
               key: "galleryScope",
-              options: { vault: "Whole vault", folder: "Photos folder only" },
+              options: { vault: "Whole vault", folder: "Photos folder only" } as Record<string, string>,
             },
           },
           {
@@ -232,7 +232,7 @@ export class CameraEmbedSettingTab extends PluginSettingTab {
             control: {
               type: "dropdown" as const,
               key: "compressionMode",
-              options: { minimal: "Minimal", expert: "Expert" },
+              options: { minimal: "Minimal", expert: "Expert" } as Record<string, string>,
             },
           },
 
@@ -248,7 +248,7 @@ export class CameraEmbedSettingTab extends PluginSettingTab {
                 light: "Light",
                 balanced: "Balanced (recommended)",
                 strong: "Strong",
-              },
+              } as Record<string, string>,
             },
           },
 
@@ -287,7 +287,7 @@ export class CameraEmbedSettingTab extends PluginSettingTab {
                 original: "Keep original format",
                 jpeg: "JPEG",
                 webp: "WebP",
-              },
+              } as Record<string, string>,
             },
           },
           {

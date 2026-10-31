@@ -633,11 +633,11 @@ export class GalleryModal extends Modal {
 
     menu.addItem((item) => {
       item.setTitle("Insert with width").setIcon("move-horizontal");
-      const sub = item.setSubmenu();
+      const sub = (item as any).setSubmenu();
       for (const width of WIDTH_CHOICES) {
-        sub.addItem((subItem) => subItem.setTitle(`${width} px`).onClick(() => this.useSelected(width)));
+        sub.addItem((subItem: any) => subItem.setTitle(`${width} px`).onClick(() => this.useSelected(width)));
       }
-      sub.addItem((subItem) => subItem.setTitle("Original size").onClick(() => this.useSelected()));
+      sub.addItem((subItem: any) => subItem.setTitle("Original size").onClick(() => this.useSelected()));
     });
 
     if (single) {

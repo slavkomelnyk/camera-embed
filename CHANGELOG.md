@@ -2,13 +2,19 @@
 
 All notable changes to **this project** will be documented in this file.
 
-## 1.2.0
+## 2.2.1
+- Fixed bugs
+
+## 2.2.0
 - Restored picker
 - Updated gallery
 - Fixed many bugs
-## 1.1.0
+## 2.1.0
 - Added artifact attestation in release.yml.
 - Updated Changelog
+
+## 2.0.0
+- fixed bugs
 
 ## 1.0.16
 - Fixed readme
